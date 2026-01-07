@@ -26,10 +26,15 @@ class ChatProvider extends ChangeNotifier {
   }
 
   void saveMessageAsNote(String text, NotesProvider notesProvider) {
+    // [FIX]: Convert plain text to Quill JSON Delta so the Editor can read it
+    final String jsonContent = jsonEncode([
+      {'insert': '$text\n'}
+    ]);
+
     final newNote = Note(
       id: const Uuid().v4(),
       title: "AI Chat Note",
-      content: text,
+      content: jsonContent, // Saved as JSON
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
       folder: 'Uncategorised',
@@ -38,11 +43,11 @@ class ChatProvider extends ChangeNotifier {
     notesProvider.addNote(newNote);
   }
 
-  // --- UPGRADED COMMAND EXECUTION ---
+  // --- COMMAND EXECUTION ---
   Future<void> executeCommand(String msgId, Map<String, dynamic> command, BuildContext context) async {
     final action = command['action'];
     
-    // 1. SET LOADING
+    // 1. SET LOADING STATE
     final index = _messages.indexWhere((m) => m.id == msgId);
     if (index != -1) {
       final loadingJson = Map<String, dynamic>.from(command);
@@ -62,15 +67,23 @@ class ChatProvider extends ChangeNotifier {
       // 2. SWITCH ACTIONS
       switch (action) {
         
-        // --- CREATION ---
+        // --- NOTE CREATION [FIXED] ---
         case 'create_note':
           final notesProvider = Provider.of<NotesProvider>(context, listen: false);
           final folderName = command['folder'] ?? 'Uncategorised';
+          final rawContent = command['content'] ?? '';
+          
+          // [FIX]: Convert AI plain text response to Quill JSON Delta format
+          // This ensures the NoteEditorScreen can load it without showing a blank page
+          final String structuredContent = jsonEncode([
+            {'insert': '$rawContent\n'}
+          ]);
+
           notesProvider.createFolder(folderName);
           notesProvider.addNote(Note(
             id: const Uuid().v4(),
             title: command['title'] ?? 'Untitled',
-            content: command['content'] ?? '',
+            content: structuredContent, // Save structured JSON
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
             folder: folderName,
@@ -94,27 +107,43 @@ class ChatProvider extends ChangeNotifier {
           moneyProvider.addTransaction(command['title'] ?? 'Transaction', amount);
           break;
 
-        // --- NEW: EDITING NOTES ---
+        // --- NOTE EDITING [FIXED] ---
         case 'edit_note':
           final notesProvider = Provider.of<NotesProvider>(context, listen: false);
           final searchTitle = command['search_title'] ?? '';
           
-          // Find note by title (case-insensitive fuzzy match)
           final noteIndex = notesProvider.notes.indexWhere((n) => n.title.toLowerCase().contains(searchTitle.toLowerCase()));
           
           if (noteIndex != -1) {
             final originalNote = notesProvider.notes[noteIndex];
-            String newContent = originalNote.content;
+            String currentContent = originalNote.content;
+            String newContentJson = currentContent;
 
-            // Append or Replace logic
+            // [FIX]: Handle appending logic for JSON content
             if (command['append_content'] != null) {
-              newContent = "$newContent\n${command['append_content']}";
+              final String textToAppend = "\n${command['append_content']}";
+              
+              try {
+                // Try to parse existing JSON
+                List<dynamic> delta = jsonDecode(currentContent);
+                // Add new insert op to the end
+                delta.add({'insert': textToAppend});
+                newContentJson = jsonEncode(delta);
+              } catch (e) {
+                // If existing wasn't JSON (legacy data), wrap both
+                newContentJson = jsonEncode([
+                  {'insert': '$currentContent$textToAppend'}
+                ]);
+              }
             } else if (command['new_content'] != null) {
-              newContent = command['new_content'];
+              // Replace content completely
+              newContentJson = jsonEncode([
+                {'insert': '${command['new_content']}\n'}
+              ]);
             }
 
             final updatedNote = originalNote.copyWith(
-              content: newContent,
+              content: newContentJson,
               updatedAt: DateTime.now(),
             );
             
@@ -124,7 +153,6 @@ class ChatProvider extends ChangeNotifier {
           }
           break;
 
-        // --- NEW: EDITING TASKS ---
         case 'update_task':
         case 'complete_task':
         case 'delete_task':
@@ -141,7 +169,6 @@ class ChatProvider extends ChangeNotifier {
             } else if (action == 'complete_task') {
               tasksProvider.toggleTask(task.id);
             } else {
-              // Update fields
               final newTitle = command['new_title'] ?? task.title;
               final newPriority = command['priority'] ?? task.priority;
               tasksProvider.updateTask(task.copyWith(title: newTitle, priority: newPriority));
@@ -152,7 +179,7 @@ class ChatProvider extends ChangeNotifier {
           break;
       }
       
-      // 3. SET SUCCESS
+      // 3. SET SUCCESS STATE
       if (index != -1) {
         final successJson = Map<String, dynamic>.from(command);
         successJson['status'] = 'success';
@@ -166,9 +193,7 @@ class ChatProvider extends ChangeNotifier {
       }
 
     } catch (e) {
-      // SET ERROR STATE IN CHAT
       if (index != -1) {
-        // We replace the JSON with a text error message so the user sees what went wrong
         _messages[index] = ChatMessage(
           id: _messages[index].id,
           text: "I tried, but ran into an issue: $e",
@@ -181,11 +206,7 @@ class ChatProvider extends ChangeNotifier {
   }
 
   // --- SEND LOGIC ---
-  Future<void> sendMessage({
-    required String message, 
-    required List<String> userMemories,
-    String? systemInjection, // NEW: Allows context injection like Health Data
-  }) async {
+  Future<void> sendMessage({required String message, required List<String> userMemories}) async {
     final userMsg = ChatMessage(id: const Uuid().v4(), text: message, isUser: true, timestamp: DateTime.now());
     _messages.insert(0, userMsg);
     _isTyping = true;
@@ -193,14 +214,6 @@ class ChatProvider extends ChangeNotifier {
 
     try {
       final aiService = AiService();
-      
-      // If we have systemInjection (e.g. Health Logs), we prepend it invisibly or handle it in AI Service
-      // For simplicity, we append it to the user's message as a system context note
-      String finalMessage = message;
-      if (systemInjection != null) {
-        finalMessage += "\n\n[SYSTEM CONTEXT]: $systemInjection";
-      }
-
       final responseText = await aiService.sendMessage(
         history: _messages.reversed.toList(), 
         userMemories: userMemories

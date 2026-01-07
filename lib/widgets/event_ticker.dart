@@ -1,15 +1,11 @@
-// file: lib/widgets/event_ticker.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../models/event_model.dart';
 
 class EventTicker extends StatelessWidget {
-  final Event event; // [FIX]: Added field
+  final Event event;
   
-  const EventTicker({
-    super.key, 
-    required this.event, // [FIX]: Added required parameter
-  });
+  const EventTicker({super.key, required this.event});
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +30,7 @@ class EventTicker extends StatelessWidget {
           Row(
             children: [
               Icon(
-                event.type == EventType.birthday ? Icons.cake : CupertinoIcons.calendar, 
+                CupertinoIcons.calendar, 
                 color: isToday ? Colors.redAccent : Colors.blueAccent, 
                 size: 16
               ),

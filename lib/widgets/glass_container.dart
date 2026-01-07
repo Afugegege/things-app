@@ -14,8 +14,8 @@ class GlassContainer extends StatelessWidget {
   const GlassContainer({
     super.key,
     required this.child,
-    this.width,   // REMOVED "double.infinity" default
-    this.height,  // REMOVED "double.infinity" default
+    this.width,
+    this.height,
     this.borderRadius = 20.0,
     this.blur = 15.0,
     this.opacity = 0.1,
@@ -33,7 +33,7 @@ class GlassContainer extends StatelessWidget {
         borderRadius: BorderRadius.circular(borderRadius),
         child: Stack(
           children: [
-            // Layer 1: The Blur Effect (Forces it to fill the size of the content)
+            // Layer 1: Blur Effect
             Positioned.fill(
               child: BackdropFilter(
                 filter: ImageFilter.blur(
@@ -53,10 +53,9 @@ class GlassContainer extends StatelessWidget {
               ),
             ),
             
-            // Layer 2: The actual content (This determines the size)
+            // Layer 2: Content
             Container(
               padding: padding,
-              alignment: Alignment.center,
               child: child,
             ),
           ],

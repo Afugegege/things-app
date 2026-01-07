@@ -33,12 +33,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   final FocusNode _editorFocusNode = FocusNode();
   final ScrollController _pageScrollController = ScrollController();
   
-  // SWIPE TOOLBAR CONTROLLERS
   final PageController _toolbarPageController = PageController();
   int _currentToolbarPage = 0;
   bool _showToolbar = true;
 
-  // STATE VARIABLES
   Color? _backgroundColor;
   String? _backgroundImagePath;
   String _currentThemeId = 'midnight'; 
@@ -66,10 +64,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     });
   }
 
+  // [FIX]: Robust Editor Setup to handle both JSON and Plain Text
   void _setupEditor() {
     try {
       if (widget.note?.content != null && widget.note!.content.isNotEmpty) {
-        final doc = quill.Document.fromJson(jsonDecode(widget.note!.content));
+        // 1. Try to parse as JSON Delta (The standard format)
+        final List<dynamic> jsonContent = jsonDecode(widget.note!.content);
+        final doc = quill.Document.fromJson(jsonContent);
         _quillController = quill.QuillController(
           document: doc, 
           selection: const TextSelection.collapsed(offset: 0)
@@ -78,7 +79,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         _quillController = quill.QuillController.basic();
       }
     } catch (e) {
-      _quillController = quill.QuillController.basic();
+      // 2. Fallback: If JSON parsing fails, treat content as Plain Text
+      // This fixes notes that were saved as raw strings by the AI
+      final doc = quill.Document();
+      if (widget.note?.content != null) {
+        doc.insert(0, widget.note!.content);
+      }
+      _quillController = quill.QuillController(
+        document: doc, 
+        selection: const TextSelection.collapsed(offset: 0)
+      );
     }
   }
 
@@ -104,20 +114,15 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   void _saveNote() {
     final title = _titleController.text.trim();
-    
-    // 1. Get the Plain Text to check if it's actually empty (ignores formatting/json)
     final String plainText = _quillController.document.toPlainText().trim();
-    
-    // 2. Check if there is any "real" content (Text, Title, or Background Image)
     final bool isEmpty = title.isEmpty && plainText.isEmpty && _backgroundImagePath == null;
 
-    // 3. If it's a NEW note and it's empty, discard it (Don't Save)
     if (widget.note == null && isEmpty) {
       if (mounted) Navigator.pop(context);
       return;
     }
 
-    // 4. If we are here, there is content to save
+    // [FIX]: Always save as JSON Delta to ensure consistency
     final contentJson = jsonEncode(_quillController.document.toDelta().toJson());
     final notesProvider = Provider.of<NotesProvider>(context, listen: false);
 
@@ -143,6 +148,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     
     if (mounted) Navigator.pop(context);
   }
+
+  // ... (Rest of the file remains exactly the same as before) ...
+  // [Keeping existing methods: _pickBackgroundImage, _insertImage, _openDoodlePad, 
+  // _showSmartButtonDialog, _showThemePicker, _themeOption, _getThemeDecoration, 
+  // _getThemeTextColor, build, _buildSwipeToolbar, _formatBtn]
 
   Future<void> _pickBackgroundImage() async {
     final picker = ImagePicker();
@@ -454,7 +464,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 ],
               ),
 
-              // --- NEW SWIPE TOOLBAR ---
               if (_showToolbar)
                 Positioned(
                   bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -499,7 +508,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                     ],
                   ),
                 ),
-                
                 // PAGE 2: MEDIA & VIBES
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -543,17 +551,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 ),
               ],
             ),
-             // ARROWS
              if (_currentToolbarPage == 0)
               Positioned(
-                right: 5, 
-                top: 20, 
+                right: 5, top: 20, 
                 child: Icon(Icons.arrow_forward_ios, size: 12, color: Colors.white.withOpacity(0.3))
               ),
              if (_currentToolbarPage == 1)
               Positioned(
-                left: 5, 
-                top: 20, 
+                left: 5, top: 20, 
                 child: Icon(Icons.arrow_back_ios, size: 12, color: Colors.white.withOpacity(0.3))
               ),
           ],
@@ -562,13 +567,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     );
   }
 
-  // FIXED: Custom format button that doesn't rely on internal Quill tooltip lookups
   Widget _formatBtn(quill.Attribute attribute, IconData icon, String tooltip) {
     return StatefulBuilder(
       builder: (context, setState) {
-        // Check if the attribute is currently applied
         final isActive = _quillController.getSelectionStyle().attributes.containsKey(attribute.key);
-        
         return IconButton(
           icon: Icon(
             icon, 
@@ -577,15 +579,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           tooltip: tooltip,
           onPressed: () {
             if (isActive) {
-              // Remove the attribute
-              _quillController.formatSelection(
-                quill.Attribute.clone(attribute, null)
-              );
+              _quillController.formatSelection(quill.Attribute.clone(attribute, null));
             } else {
-              // Apply the attribute
               _quillController.formatSelection(attribute);
             }
-            // Trigger rebuild to update icon color
             setState(() {});
           },
         );

@@ -3,16 +3,18 @@ class Task {
   final String title;
   final bool isDone;
   final DateTime createdAt;
-  final int priority; // <--- ADDED THIS (1=Low, 2=Medium, 3=High)
+  final int priority; // 1=Low, 2=Medium, 3=High
   final String? note;
+  final bool isPinned;
 
   Task({
     required this.id,
     required this.title,
     required this.isDone,
     required this.createdAt,
-    this.priority = 1, // Default to Medium
+    this.priority = 1,
     this.note,
+    this.isPinned = false,
   });
 
   Task copyWith({
@@ -22,6 +24,7 @@ class Task {
     DateTime? createdAt,
     int? priority,
     String? note,
+    bool? isPinned,
   }) {
     return Task(
       id: id ?? this.id,
@@ -30,10 +33,10 @@ class Task {
       createdAt: createdAt ?? this.createdAt,
       priority: priority ?? this.priority,
       note: note ?? this.note,
+      isPinned: isPinned ?? this.isPinned,
     );
   }
   
-  // Convert to Map for saving (optional but good practice)
   Map<String, dynamic> toJson() => {
     'id': id,
     'title': title,
@@ -41,6 +44,7 @@ class Task {
     'createdAt': createdAt.toIso8601String(),
     'priority': priority,
     'note': note,
+    'isPinned': isPinned,
   };
 
   factory Task.fromJson(Map<String, dynamic> json) {
@@ -51,6 +55,7 @@ class Task {
       createdAt: DateTime.parse(json['createdAt']),
       priority: json['priority'] ?? 1,
       note: json['note'],
+      isPinned: json['isPinned'] ?? false,
     );
   }
 }
