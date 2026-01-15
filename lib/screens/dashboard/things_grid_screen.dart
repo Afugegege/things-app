@@ -9,6 +9,7 @@ import '../../providers/money_provider.dart';
 import '../../providers/tasks_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/events_provider.dart';
+import '../../providers/roam_provider.dart'; // [NEW] Roam Provider
 
 import '../../models/note_model.dart';
 import '../../models/task_model.dart';
@@ -17,9 +18,13 @@ import '../../models/event_model.dart';
 import '../../widgets/glass_container.dart';
 import '../notes/note_editor_screen.dart';
 import '../apps/wallet_screen.dart';
+import '../calendar/calendar_screen.dart';
+import '../tools/flashcard_screen.dart';
+import '../tools/bucket_list_screen.dart';
+
 import '../../widgets/smart_widgets/widget_factory.dart';
 import '../../widgets/smart_widgets/expense_widget.dart';
-// [FIX] Corrected Import Path
+import '../../widgets/smart_widgets/roam_widget.dart'; // [NEW] Roam Widget
 import '../../widgets/event_ticker.dart'; 
 import 'widget_studio_screen.dart';
 
@@ -46,13 +51,16 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
     final tasksProvider = Provider.of<TasksProvider>(context);
     final userProvider = Provider.of<UserProvider>(context);
     final eventsProvider = Provider.of<EventsProvider>(context);
+    final roamProvider = Provider.of<RoamProvider>(context); // [NEW]
 
     final String currentFolder = notesProvider.selectedFolder;
     final bool isFolderView = currentFolder != 'All';
     final List<dynamic> allItems = [];
     final visibility = userProvider.appVisibility;
 
+    // --- DATA GATHERING ---
     if (!isFolderView) {
+      // 1. EVENTS
       if (_activeFilter == 'All' || _activeFilter == 'Events') {
          if (_activeFilter == 'Events') {
            allItems.addAll(eventsProvider.upcomingEvents);
@@ -62,15 +70,25 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
          }
       }
 
+      // 2. ROAM (New)
+      if (visibility['Roam'] != false && (_activeFilter == 'All' || _activeFilter == 'Roam')) {
+         // Show the most recent trip if available
+         if (roamProvider.trips.isNotEmpty) {
+           allItems.add(roamProvider.trips.first);
+         }
+      }
+
+      // 3. WIDGETS
       if (visibility['Wallet'] == true && (_activeFilter == 'All' || _activeFilter == 'Money')) {
         allItems.add('EXPENSE_WIDGET');
         allItems.addAll(moneyProvider.transactions.take(2));
       }
       if (visibility['Focus'] == true && (_activeFilter == 'All' || _activeFilter == 'Tasks')) {
-        allItems.addAll(tasksProvider.tasks.take(4));
+        allItems.addAll(tasksProvider.tasks.where((t) => !t.isDone).take(4));
       }
     }
     
+    // 4. NOTES
     if ((visibility['Brain'] == true || isFolderView) && (_activeFilter == 'All' || _activeFilter == 'Notes')) {
        final visibleNotes = notesProvider.notes.where((note) {
           if (isFolderView) return true;
@@ -95,6 +113,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
       
       body: CustomScrollView(
         slivers: [
+          // HEADER
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 60, 20, 10),
@@ -168,6 +187,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
                           _filterChip("Tasks"),
                           _filterChip("Money"),
                           _filterChip("Events"),
+                          _filterChip("Roam"), // [NEW] Roam Filter
                         ],
                       ),
                     ),
@@ -232,7 +252,15 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
                 _exitMultiSelect();
               },
             ),
-            IconButton(
+            if (_hasOnlyNotes(notesProvider))
+              IconButton(
+                icon: const Icon(Icons.merge_type, color: Colors.white),
+                onPressed: () {
+                  notesProvider.mergeNotes(_selectedIds.toList());
+                  _exitMultiSelect();
+                },
+              ),
+             IconButton(
               icon: const Icon(Icons.close, color: Colors.white54),
               onPressed: _exitMultiSelect,
             ),
@@ -242,41 +270,54 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
     );
   }
 
-  // --- ACTIONS & WIDGET BUILDERS ---
-
-  void _showItemOptions(BuildContext context, dynamic item) {
-    String? id;
-    bool isPinned = false;
-    
-    if (item is Note) { id = item.id; isPinned = item.isPinned; }
-    if (item is Task) { id = item.id; isPinned = item.isPinned; }
-    
-    if (id == null) return;
-
+  // --- UPDATED QUICK ADD MENU ---
+  void _showQuickAddMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1C1C1E),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => SafeArea(
-        child: Wrap(
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        height: 350,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ListTile(
-              leading: Icon(isPinned ? CupertinoIcons.pin_slash_fill : CupertinoIcons.pin_fill, color: Colors.white),
-              title: Text(isPinned ? "Unpin Widget" : "Pin Widget", style: const TextStyle(color: Colors.white)),
-              onTap: () {
-                if (item is Note) Provider.of<NotesProvider>(context, listen: false).togglePin(id!);
-                if (item is Task) Provider.of<TasksProvider>(context, listen: false).togglePin(id!);
-                Navigator.pop(ctx);
-              },
-            ),
-            ListTile(
-              leading: const Icon(CupertinoIcons.delete, color: Colors.redAccent),
-              title: const Text("Delete", style: TextStyle(color: Colors.redAccent)),
-              onTap: () {
-                if (item is Note) Provider.of<NotesProvider>(context, listen: false).deleteNote(id!);
-                if (item is Task) Provider.of<TasksProvider>(context, listen: false).deleteTask(id!);
-                Navigator.pop(ctx);
-              },
+            const Text("Quick Add", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            Expanded(
+              child: GridView.count(
+                crossAxisCount: 3,
+                mainAxisSpacing: 20,
+                crossAxisSpacing: 20,
+                children: [
+                  _quickAddOption(CupertinoIcons.doc_text, "Note", Colors.blueAccent, () {
+                    Navigator.pop(ctx);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const NoteEditorScreen()));
+                  }),
+                  _quickAddOption(CupertinoIcons.check_mark_circled, "Task", Colors.greenAccent, () {
+                    Navigator.pop(ctx);
+                    Provider.of<TasksProvider>(context, listen: false).addTask(
+                      Task(id: const Uuid().v4(), title: "New Task", isDone: false, createdAt: DateTime.now())
+                    );
+                  }),
+                  _quickAddOption(CupertinoIcons.money_dollar, "Expense", Colors.redAccent, () {
+                    Navigator.pop(ctx);
+                    Provider.of<MoneyProvider>(context, listen: false).addTransaction("New Expense", -10.0);
+                  }),
+                  _quickAddOption(CupertinoIcons.calendar, "Event", Colors.orangeAccent, () {
+                    Navigator.pop(ctx);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const CalendarScreen()));
+                  }),
+                  _quickAddOption(CupertinoIcons.book, "Study", Colors.purpleAccent, () {
+                    Navigator.pop(ctx);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const FlashCardScreen()));
+                  }),
+                  _quickAddOption(CupertinoIcons.star, "Bucket List", Colors.yellowAccent, () {
+                    Navigator.pop(ctx);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const BucketListScreen()));
+                  }),
+                ],
+              ),
             ),
           ],
         ),
@@ -284,13 +325,32 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
     );
   }
 
+  Widget _quickAddOption(IconData icon, String label, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 55, height: 55,
+            decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle),
+            child: Icon(icon, color: color, size: 26),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  // --- HELPERS ---
+
   Widget _buildSelectableItem(BuildContext context, dynamic item) {
     String? id;
-    bool isPinned = false;
-
-    if (item is Note) { id = item.id; isPinned = item.isPinned; }
-    if (item is Task) { id = item.id; isPinned = item.isPinned; }
+    if (item is Note) id = item.id;
+    if (item is Task) id = item.id;
     if (item is Event) id = item.id;
+    // Roam and Money Maps don't use selection logic here
     
     if (id == null) return _buildGridItem(context, item);
 
@@ -302,13 +362,11 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
         else if (item is Note) Navigator.push(context, MaterialPageRoute(builder: (_) => NoteEditorScreen(note: item)));
       },
       onLongPress: () {
-        if (_isMultiSelect) return;
-        _showItemOptions(context, item);
+        setState(() { _isMultiSelect = true; _selectedIds.add(id!); });
       },
       child: Stack(
         children: [
           AbsorbPointer(absorbing: _isMultiSelect, child: _buildGridItem(context, item)),
-          
           if (_isMultiSelect)
             Positioned.fill(
               child: Container(
@@ -320,17 +378,6 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
                 alignment: Alignment.topRight,
                 padding: const EdgeInsets.all(8),
                 child: Icon(isSelected ? Icons.check_circle : Icons.circle_outlined, color: Colors.white),
-              ),
-            ),
-
-          if (isPinned && !_isMultiSelect)
-            Positioned(
-              top: 10,
-              right: 10,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
-                child: const Icon(CupertinoIcons.pin_fill, color: Colors.yellowAccent, size: 12),
               ),
             ),
         ],
@@ -351,6 +398,13 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
 
   void _exitMultiSelect() {
     setState(() { _isMultiSelect = false; _selectedIds.clear(); });
+  }
+
+  bool _hasOnlyNotes(NotesProvider notesProvider) {
+    for (var id in _selectedIds) {
+      if (!notesProvider.notes.any((n) => n.id == id)) return false;
+    }
+    return true;
   }
 
   Widget _filterChip(String label) {
@@ -374,7 +428,16 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
     if (item is Note) return WidgetFactory.build(context, item);
     if (item is Task) return _buildTaskCard(item);
     if (item is Event) return EventTicker(event: item);
-    if (item is Map) return _buildMoneyCard(Map<String, dynamic>.from(item));
+    
+    if (item is Map) {
+      // Roam Check: Trips have 'distance_km'
+      if (item.containsKey('distance_km')) {
+        return RoamWidget(trip: Map<String, dynamic>.from(item)); // [NEW] Render Roam
+      }
+      // Otherwise Money
+      return _buildMoneyCard(Map<String, dynamic>.from(item));
+    }
+    
     if (item == 'EXPENSE_WIDGET') return const ExpenseSummaryWidget();
     return const SizedBox();
   }
@@ -411,6 +474,4 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
       ]),
     );
   }
-
-  void _showQuickAddMenu(BuildContext context) {} 
 }

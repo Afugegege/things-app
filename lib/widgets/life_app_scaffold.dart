@@ -4,12 +4,14 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../providers/user_provider.dart';
+import 'dashboard_drawer.dart';
 
 class LifeAppScaffold extends StatelessWidget {
   final String title;
   final Widget child;
   final Widget? floatingActionButton;
   final List<Widget>? actions;
+  final bool useDrawer;
 
   const LifeAppScaffold({
     super.key, 
@@ -17,38 +19,31 @@ class LifeAppScaffold extends StatelessWidget {
     required this.child,
     this.floatingActionButton,
     this.actions,
+    this.useDrawer = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
-    final themeId = userProvider.currentTheme;
-    final themeData = AppTheme.getThemeData(themeId);
     
-    // Determine Background
-    BoxDecoration bgDecoration;
-    if (themeId == 'Cyberpunk') {
-      bgDecoration = const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF0F0C29), Color(0xFF302b63), Color(0xFF24243e)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      );
-    } else {
-      bgDecoration = BoxDecoration(color: themeData.scaffoldBackgroundColor);
-    }
+    // [FIX] Use the isDarkMode boolean directly for cleaner logic
+    final bool isDark = userProvider.isDarkMode;
+    final themeData = AppTheme.getThemeData(isDark);
+    
+    // Background Logic
+    final BoxDecoration bgDecoration = BoxDecoration(color: themeData.scaffoldBackgroundColor);
 
     return Theme(
       data: themeData,
       child: Scaffold(
-        backgroundColor: Colors.transparent, 
+        backgroundColor: Colors.transparent,
+        drawer: useDrawer ? const DashboardDrawer() : null,
         floatingActionButton: floatingActionButton,
         body: Container(
           decoration: bgDecoration,
           child: Stack(
             children: [
-              // 1. Content Body
+              // Content
               Positioned.fill(
                 child: SafeArea(
                   top: false,
@@ -59,7 +54,7 @@ class LifeAppScaffold extends StatelessWidget {
                 ),
               ),
     
-              // 2. Glass Header
+              // Glass Header
               Positioned(
                 top: 0,
                 left: 0,
@@ -69,7 +64,7 @@ class LifeAppScaffold extends StatelessWidget {
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: AppTheme.glassBlur, sigmaY: AppTheme.glassBlur),
                     child: Container(
-                      color: themeData.colorScheme.surface.withValues(alpha: 0.7), // Fixed deprecation
+                      color: themeData.colorScheme.surface.withOpacity(0.7),
                       alignment: Alignment.bottomCenter,
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                       child: SafeArea(
@@ -77,18 +72,33 @@ class LifeAppScaffold extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Back Button
-                            GestureDetector(
-                              onTap: () => Navigator.pop(context),
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: themeData.iconTheme.color!.withValues(alpha: 0.1), // Fixed deprecation
-                                  shape: BoxShape.circle,
+                            // Menu/Back Button
+                            if (useDrawer)
+                              Builder(
+                                builder: (context) => GestureDetector(
+                                  onTap: () => Scaffold.of(context).openDrawer(),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: themeData.iconTheme.color!.withOpacity(0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(Icons.menu, color: themeData.iconTheme.color, size: 24),
+                                  ),
                                 ),
-                                child: Icon(CupertinoIcons.back, color: themeData.iconTheme.color, size: 20),
+                              )
+                            else
+                              GestureDetector(
+                                onTap: () => Navigator.pop(context),
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: themeData.iconTheme.color!.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(CupertinoIcons.back, color: themeData.iconTheme.color, size: 20),
+                                ),
                               ),
-                            ),
                             
                             // Title
                             Text(

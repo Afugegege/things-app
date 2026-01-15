@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart'; // [FIX] Required for CupertinoIcons
+import 'package:flutter/cupertino.dart'; 
 import '../models/user_model.dart';
 import '../services/storage_service.dart';
 
@@ -9,13 +9,18 @@ class UserProvider extends ChangeNotifier {
     name: 'Traveler',
     email: 'traveler@lifeos.app',
     aiMemory: ["I love pizza", "My goal is to be organized"], 
-    preferences: {'theme': 'Minimalist Dark'},
+    preferences: {
+      'isDarkMode': true, // Default to Dark Mode
+      'notifications': true,
+      'sounds': true,
+      'bio_auth': false,
+    },
     isPro: true,
   );
 
+  // ... [Keep existing Dock/App logic] ...
   List<String> _dockItems = ['notes', 'tasks', 'ai', 'calendar', 'profile'];
   
-  // [FIX] Use IconData objects directly to fix "int is not subtype of IconData" error
   final Map<String, dynamic> _availableApps = {
     'notes': {'label': 'Brain', 'icon': CupertinoIcons.doc_text_fill},
     'tasks': {'label': 'Focus', 'icon': CupertinoIcons.checkmark_alt_circle_fill},
@@ -28,11 +33,7 @@ class UserProvider extends ChangeNotifier {
   };
 
   final Map<String, bool> _appVisibility = {
-    'Wallet': true,
-    'Roam': false,
-    'Focus': true,
-    'Brain': true,
-    'Pulse': false,
+    'Wallet': true, 'Roam': false, 'Focus': true, 'Brain': true, 'Pulse': false,
   };
   final Map<String, bool> _folderVisibility = {};
 
@@ -40,14 +41,24 @@ class UserProvider extends ChangeNotifier {
     _loadUser();
   }
 
-  // Getters
   User get user => _user;
   List<String> get dockItems => _dockItems;
   Map<String, dynamic> get availableApps => _availableApps;
-  String get currentTheme => _user.preferences['theme'] ?? 'Minimalist Dark';
   Map<String, bool> get appVisibility => _appVisibility;
 
-  // Actions
+  // [NEW] Theme Getter
+  bool get isDarkMode => _user.preferences['isDarkMode'] ?? true;
+  // [DEPRECATED] kept for compatibility if needed, but redirects to bool
+  String get currentTheme => isDarkMode ? 'Dark' : 'Light';
+
+  // [NEW] Theme Toggle Action
+  void toggleTheme(bool isDark) {
+    final newPrefs = Map<String, dynamic>.from(_user.preferences);
+    newPrefs['isDarkMode'] = isDark;
+    updatePreferences(newPrefs);
+  }
+
+  // ... [Keep existing Actions: reorderDock, addToDock, updateName, etc.] ...
   void reorderDock(int oldIndex, int newIndex) {
     if (newIndex > oldIndex) newIndex -= 1;
     final item = _dockItems.removeAt(oldIndex);

@@ -9,10 +9,10 @@ import '../../providers/user_provider.dart';
 import '../../providers/notes_provider.dart';
 import '../../providers/tasks_provider.dart'; 
 import '../../models/chat_model.dart';
-import '../../models/note_model.dart';
 import '../../widgets/glass_container.dart';
 import '../../widgets/chat_preview_card.dart';
 import '../../utils/json_cleaner.dart';
+import '../../widgets/dashboard_drawer.dart'; // [NEW] Import Drawer
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -30,6 +30,9 @@ class _ChatScreenState extends State<ChatScreen> {
   // Follow-up Logic
   bool _isRefining = false;
   String? _pendingActionId;
+
+  // Counselor Mode State
+  bool _isCounselorMode = false;
 
   @override
   void initState() {
@@ -155,7 +158,6 @@ class _ChatScreenState extends State<ChatScreen> {
         }
 
         // PENDING STATE -> PREVIEW CARD
-        // Use ChatPreviewCard for Notes, simple ConfirmationCard for Tasks/Money
         if (data['action'] == 'create_note' || data['action'] == 'edit_note') {
            return ChatPreviewCard(
              data: data,
@@ -234,6 +236,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       resizeToAvoidBottomInset: false, 
+      drawer: const DashboardDrawer(), // [NEW] Attach Sidebar
       body: Stack(
         children: [
           // Chat List
@@ -244,13 +247,30 @@ class _ChatScreenState extends State<ChatScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
                 alignment: Alignment.centerLeft,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("AI Companion", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-                    IconButton(
-                      icon: const Icon(CupertinoIcons.sparkles, color: Colors.white),
-                      onPressed: () {},
-                    )
+                    // [NEW] Menu Button
+                    Builder(
+                      builder: (context) => GestureDetector(
+                        onTap: () => Scaffold.of(context).openDrawer(),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: Colors.white10, shape: BoxShape.circle),
+                          child: const Icon(Icons.menu, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 15),
+                    
+                    const Expanded(
+                      child: Text("AI Companion", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                    ),
+                    
+                    // Counselor Toggle
+                    Switch(
+                      value: _isCounselorMode,
+                      activeColor: Colors.greenAccent,
+                      onChanged: (val) => setState(() => _isCounselorMode = val),
+                    ),
                   ],
                 ),
               ),
@@ -272,7 +292,9 @@ class _ChatScreenState extends State<ChatScreen> {
                           padding: const EdgeInsets.all(15),
                           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.85),
                           decoration: BoxDecoration(
-                            color: msg.isUser ? Colors.white : Colors.white.withOpacity(0.1),
+                            color: msg.isUser 
+                                ? (_isCounselorMode ? Colors.green.withOpacity(0.8) : Colors.white) 
+                                : Colors.white.withOpacity(0.1),
                             borderRadius: BorderRadius.only(
                               topLeft: const Radius.circular(20),
                               topRight: const Radius.circular(20),
@@ -392,11 +414,11 @@ class _ChatScreenState extends State<ChatScreen> {
                         child: TextField(
                           controller: _controller,
                           style: const TextStyle(color: Colors.white),
-                          decoration: const InputDecoration(
-                            hintText: "Tell me what to do...", 
-                            hintStyle: TextStyle(color: Colors.white38),
+                          decoration: InputDecoration(
+                            hintText: _isCounselorMode ? "How are you feeling?" : "Tell me what to do...", 
+                            hintStyle: const TextStyle(color: Colors.white38),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 20),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
                           ),
                           onSubmitted: (_) => _handleSend(),
                         ),
@@ -408,7 +430,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
-                          icon: const Icon(Icons.arrow_upward, color: Colors.black),
+                          icon: Icon(Icons.arrow_upward, color: _isCounselorMode ? Colors.green : Colors.black),
                           onPressed: _handleSend,
                         ),
                       ),

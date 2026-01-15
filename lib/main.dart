@@ -18,6 +18,8 @@ import 'providers/events_provider.dart'; // [FIX]: Ensured this import exists
 import 'screens/main_scaffold.dart';
 import 'services/notification_service.dart';
 import 'services/storage_service.dart';
+import 'providers/flashcards_provider.dart'; // [NEW]
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +43,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => TasksProvider()),
         ChangeNotifierProvider(create: (_) => RoamProvider()),
         ChangeNotifierProvider(create: (_) => EventsProvider()), 
+        ChangeNotifierProvider(create: (_) => FlashcardsProvider()),
       ],
       child: const MyApp(),
     ),

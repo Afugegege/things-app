@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart'; // [NEW] Import Geolocator
 import '../services/storage_service.dart';
 
 class RoamProvider extends ChangeNotifier {
@@ -11,6 +12,7 @@ class RoamProvider extends ChangeNotifier {
   Duration _duration = Duration.zero;
   double _distanceKm = 0.0;
   Timer? _timer;
+  StreamSubscription<Position>? _positionStream; // [NEW] Stream Subscription
 
   // History & Replay
   List<Map<String, dynamic>> _trips = [];
@@ -47,28 +49,53 @@ class RoamProvider extends ChangeNotifier {
   }
 
   // --- RECORDING ---
-  void startRecording() {
+  
+  Future<void> startRecording() async {
+    // [NEW] Check Permissions first
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+
     _isRecording = true;
     _currentPath = [];
     _startTime = DateTime.now();
     _duration = Duration.zero;
     _distanceKm = 0.0;
     
+    // Start Time Timer
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       _duration = DateTime.now().difference(_startTime!);
       notifyListeners();
     });
+
+    // [NEW] Start Location Stream
+    const LocationSettings locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 5, // Only notify if moved 5 meters
+    );
+
+    _positionStream = Geolocator.getPositionStream(locationSettings: locationSettings)
+        .listen((Position position) {
+      addPoint(LatLng(position.latitude, position.longitude));
+    });
+
     notifyListeners();
   }
 
   void addPoint(LatLng point) {
     if (!_isRecording) return;
     
-    // Simple distance filter to reduce jitter (must move > 3 meters)
+    // Simple distance filter to reduce jitter
     if (_currentPath.isNotEmpty) {
-      final Distance distance = const Distance();
+      const Distance distance = Distance();
       final double move = distance.as(LengthUnit.Meter, _currentPath.last, point);
-      if (move > 3) {
+      // We already filter via Stream, but this is a double-check
+      if (move > 2) { 
         _distanceKm += (move / 1000.0);
         _currentPath.add(point);
         notifyListeners();
@@ -81,6 +108,7 @@ class RoamProvider extends ChangeNotifier {
 
   void stopRecording(String type) {
     _timer?.cancel();
+    _positionStream?.cancel(); // [NEW] Stop listening to GPS
     _isRecording = false;
 
     if (_currentPath.length > 2) {
@@ -91,7 +119,6 @@ class RoamProvider extends ChangeNotifier {
         'duration_sec': _duration.inSeconds,
         'distance_km': _distanceKm,
         'pace': averagePace,
-        // Convert LatLng objects to simple Map for JSON storage
         'points': _currentPath.map((p) => {'lat': p.latitude, 'lng': p.longitude}).toList(),
       };
       _trips.insert(0, newTrip);
@@ -104,19 +131,16 @@ class RoamProvider extends ChangeNotifier {
 
   // --- REPLAY SYSTEM ---
   void startReplay(Map<String, dynamic> trip) {
-    // 1. Parse points
     final List pointsJson = trip['points'];
     final List<LatLng> path = pointsJson.map((p) => LatLng(p['lat'], p['lng'])).toList();
 
     if (path.isEmpty) return;
 
-    // 2. Setup Replay
     _isReplaying = true;
     _replayIndex = 0;
-    _currentPath = path; // Show the full path trace
+    _currentPath = path; 
     
     _replayTimer?.cancel();
-    // 3. Fast forward loop (50ms updates)
     _replayTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
       if (_replayIndex < path.length) {
         _replayPosition = path[_replayIndex];
@@ -132,7 +156,7 @@ class RoamProvider extends ChangeNotifier {
     _isReplaying = false;
     _replayTimer?.cancel();
     _replayPosition = null;
-    _currentPath = []; // Clear the trace line
+    _currentPath = [];
     notifyListeners();
   }
 }

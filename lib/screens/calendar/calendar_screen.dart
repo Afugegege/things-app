@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../providers/events_provider.dart';
 import '../../models/event_model.dart';
 import '../../widgets/glass_container.dart';
+import '../../widgets/dashboard_drawer.dart'; // Ensure this exists
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -21,7 +22,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime? _selectedDay = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
 
-  // --- NAVIGATION: SPINNER PICKER ---
+  // --- NAVIGATION: DATE SPINNER ---
   void _selectYearMonth() {
     showModalBottomSheet(
       context: context,
@@ -72,18 +73,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  void _prevMonth() {
-    setState(() {
-      _focusedDay = DateTime(_focusedDay.year, _focusedDay.month - 1, _focusedDay.day);
-    });
-  }
-
-  void _nextMonth() {
-    setState(() {
-      _focusedDay = DateTime(_focusedDay.year, _focusedDay.month + 1, _focusedDay.day);
-    });
-  }
-
   void _jumpToToday() {
     setState(() {
       _focusedDay = DateTime.now();
@@ -115,16 +104,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text("New Event", style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white54),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
-                ),
+                const Text("New Event", style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 30),
                 
                 TextField(
@@ -225,7 +205,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      
+      drawer: const DashboardDrawer(), // ADDED DRAWER
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 110), 
         child: FloatingActionButton(
@@ -239,121 +219,117 @@ class _CalendarScreenState extends State<CalendarScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 20), // Top spacing
+            const SizedBox(height: 10),
 
-            // --- SPACIOUS CALENDAR CARD ---
-            GlassContainer(
-              margin: const EdgeInsets.symmetric(horizontal: 20), // Detached from sides
-              padding: const EdgeInsets.fromLTRB(15, 20, 15, 25), // Inner breathing room
-              borderRadius: 30, // Softer corners
-              opacity: 0.08, // Subtle glass effect
-              child: Column(
-                children: [
-                  // CUSTOM HEADER INSIDE CARD
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        GestureDetector(
-                          onTap: _selectYearMonth,
-                          child: Row(
-                            children: [
-                              Text(
-                                DateFormat('MMMM y').format(_focusedDay),
-                                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                              ),
-                              const Icon(Icons.arrow_drop_down, color: Colors.white54),
-                            ],
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            IconButton(icon: const Icon(Icons.chevron_left, color: Colors.white70), onPressed: _prevMonth),
-                            IconButton(icon: const Icon(Icons.chevron_right, color: Colors.white70), onPressed: _nextMonth),
-                          ],
-                        )
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 10),
-
-                  // THE CALENDAR GRID
-                  TableCalendar(
-                    firstDay: DateTime.utc(2020, 1, 1),
-                    lastDay: DateTime.utc(2030, 12, 31),
-                    focusedDay: _focusedDay,
-                    calendarFormat: _calendarFormat,
-                    startingDayOfWeek: StartingDayOfWeek.monday,
-                    rowHeight: 52, // Tall rows for spaciousness
-                    
-                    selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                    onDaySelected: (selectedDay, focusedDay) {
-                      setState(() {
-                        _selectedDay = selectedDay;
-                        _focusedDay = focusedDay;
-                      });
-                    },
-                    onFormatChanged: (format) => setState(() => _calendarFormat = format),
-                    onPageChanged: (focusedDay) => _focusedDay = focusedDay,
-                    eventLoader: (day) => eventsProvider.getEventsForDay(day),
-                    
-                    headerVisible: false, // We built our own custom header above
-                    
-                    daysOfWeekStyle: const DaysOfWeekStyle(
-                      weekdayStyle: TextStyle(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.bold),
-                      weekendStyle: TextStyle(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                    
-                    calendarStyle: const CalendarStyle(
-                      defaultTextStyle: TextStyle(color: Colors.white, fontSize: 16),
-                      weekendTextStyle: TextStyle(color: Colors.white70, fontSize: 16),
-                      outsideTextStyle: TextStyle(color: Colors.white12, fontSize: 16),
-                      
-                      // Circle Styles
-                      todayDecoration: BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle),
-                      selectedDecoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                      selectedTextStyle: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16),
-                      
-                      // Marker Dots
-                      markerDecoration: BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
-                      markersMaxCount: 1, // Cleaner look with just one dot
-                      markerSize: 6,
-                      markerMargin: EdgeInsets.only(top: 6),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 30),
-
-            // --- SCHEDULE HEADER ---
+            // --- HEADER ---
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text("SCHEDULE", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-                  
+                  Row(
+                    children: [
+                      // Menu Button
+                      Builder(builder: (ctx) => IconButton(
+                        icon: const Icon(Icons.menu, color: Colors.white),
+                        onPressed: () => Scaffold.of(ctx).openDrawer(),
+                      )),
+                      const SizedBox(width: 10),
+                      // Title (Tap triggers Wheel Picker)
+                      GestureDetector(
+                        onTap: _selectYearMonth,
+                        child: Row(
+                          children: [
+                            Text(
+                              DateFormat('MMMM y').format(_focusedDay),
+                              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                            ),
+                            const Icon(Icons.keyboard_arrow_down, color: Colors.white54),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Today Button
                   GestureDetector(
                     onTap: _jumpToToday,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white12),
+                        color: Colors.blueAccent.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blueAccent.withOpacity(0.5)),
                       ),
-                      child: const Text("Today", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                      child: const Text("Today", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 12)),
                     ),
                   ),
                 ],
               ),
             ),
+
+            // --- CALENDAR GRID ---
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              child: GlassContainer(
+                padding: const EdgeInsets.only(bottom: 15),
+                borderRadius: 25,
+                child: TableCalendar(
+                  firstDay: DateTime.utc(2020, 1, 1),
+                  lastDay: DateTime.utc(2030, 12, 31),
+                  focusedDay: _focusedDay,
+                  calendarFormat: _calendarFormat,
+                  startingDayOfWeek: StartingDayOfWeek.monday,
+                  rowHeight: 52,
+                  
+                  selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                  onDaySelected: (selectedDay, focusedDay) {
+                    setState(() {
+                      _selectedDay = selectedDay;
+                      _focusedDay = focusedDay;
+                    });
+                  },
+                  onFormatChanged: (format) => setState(() => _calendarFormat = format),
+                  onPageChanged: (focusedDay) => _focusedDay = focusedDay,
+                  eventLoader: (day) => eventsProvider.getEventsForDay(day),
+                  
+                  headerVisible: false, 
+                  
+                  daysOfWeekStyle: const DaysOfWeekStyle(
+                    weekdayStyle: TextStyle(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.bold),
+                    weekendStyle: TextStyle(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                  
+                  calendarStyle: const CalendarStyle(
+                    defaultTextStyle: TextStyle(color: Colors.white, fontSize: 16),
+                    weekendTextStyle: TextStyle(color: Colors.white70, fontSize: 16),
+                    outsideTextStyle: TextStyle(color: Colors.white12, fontSize: 16),
+                    todayDecoration: BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle),
+                    selectedDecoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                    selectedTextStyle: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16),
+                    markerDecoration: BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
+                    markersMaxCount: 1,
+                    markerSize: 6,
+                    markerMargin: EdgeInsets.only(top: 6),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 25),
+
+            // --- SCHEDULE HEADER ---
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 25),
+              child: Row(
+                children: [
+                  Text("SCHEDULE", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                  const Expanded(child: Divider(color: Colors.white10, indent: 10)),
+                ],
+              ),
+            ),
             
-            const SizedBox(height: 15),
+            const SizedBox(height: 10),
 
             // --- EVENTS LIST ---
             Expanded(
@@ -366,7 +342,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         children: [
                           Icon(Icons.event_available, size: 40, color: Colors.white.withOpacity(0.1)),
                           const SizedBox(height: 10),
-                          Text("Nothing planned for today", style: const TextStyle(color: Colors.white38)),
+                          Text("No events for this day", style: const TextStyle(color: Colors.white38)),
                         ],
                       ),
                     )
@@ -381,9 +357,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: safeColor.withOpacity(0.1), // Very subtle background
+                            color: safeColor.withOpacity(0.1), 
                             borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: safeColor.withOpacity(0.3)), // Colored border instead of solid fill
+                            border: Border.all(color: safeColor.withOpacity(0.3)),
                           ),
                           child: Row(
                             children: [

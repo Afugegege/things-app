@@ -1,63 +1,76 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // --- STATIC COLORS ---
-  static const Color pureBlack = Color(0xFF000000);
-  static const Color pureWhite = Color(0xFFFFFFFF);
-  
-  // --- GLASS CONSTANTS ---
-  static const double glassOpacity = 0.12; 
+  // --- CONSTANTS ---
+  static const Color pureWhite = Colors.white;
+  static const Color pureBlack = Colors.black;
   static const double glassBlur = 20.0;
-  static const Color glassBorderColor = Colors.white12;
 
-  // --- THEME VARIANTS ---
-  static Map<String, Color> themeBackgrounds = {
-    'Minimalist Dark': const Color(0xFF000000),
-    'Cyberpunk': const Color(0xFF0F0C29), // Deep Indigo
-    'OLED Black': const Color(0xFF000000),
-    'Paper': const Color(0xFFF5F5DC), // Beige
-  };
+  // --- LIGHT THEME ---
+  static final ThemeData lightTheme = ThemeData(
+    brightness: Brightness.light,
+    scaffoldBackgroundColor: const Color(0xFFF2F2F7),
+    primaryColor: Colors.blueAccent,
+    cardColor: Colors.white,
+    canvasColor: Colors.white,
+    textTheme: const TextTheme(
+      bodyLarge: TextStyle(color: Colors.black),
+      bodyMedium: TextStyle(color: Colors.black87),
+      titleLarge: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+    ),
+    iconTheme: const IconThemeData(color: Colors.black),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      iconTheme: IconThemeData(color: Colors.black),
+      titleTextStyle: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold),
+    ),
+    colorScheme: const ColorScheme.light(
+      primary: Colors.blueAccent,
+      secondary: Colors.blue,
+      surface: Colors.white,
+      background: Color(0xFFF2F2F7),
+      onBackground: Colors.black,
+      onSurface: Colors.black,
+    ),
+  );
 
-  static Map<String, Color> themeAccents = {
-    'Minimalist Dark': Colors.white,
-    'Cyberpunk': Colors.cyanAccent,
-    'OLED Black': Colors.white38,
-    'Paper': Colors.brown,
-  };
+  // --- DARK THEME ---
+  static final ThemeData darkTheme = ThemeData(
+    brightness: Brightness.dark,
+    scaffoldBackgroundColor: Colors.black,
+    primaryColor: Colors.blueAccent,
+    cardColor: const Color(0xFF1C1C1E),
+    canvasColor: const Color(0xFF1C1C1E),
+    textTheme: const TextTheme(
+      bodyLarge: TextStyle(color: Colors.white),
+      bodyMedium: TextStyle(color: Colors.white70),
+      titleLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+    ),
+    iconTheme: const IconThemeData(color: Colors.white),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      iconTheme: IconThemeData(color: Colors.white),
+      titleTextStyle: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+    ),
+    colorScheme: const ColorScheme.dark(
+      primary: Colors.blueAccent,
+      secondary: Colors.blue,
+      surface: Color(0xFF1C1C1E),
+      background: Colors.black,
+      onBackground: Colors.white,
+      onSurface: Colors.white,
+    ),
+  );
 
-  // --- TEXT THEME ---
-  static TextTheme _buildTextTheme(Color color) {
-    return GoogleFonts.interTextTheme().copyWith(
-      displayLarge: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 32),
-      displayMedium: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 24),
-      bodyLarge: TextStyle(color: color, fontSize: 16),
-      bodyMedium: TextStyle(color: color.withOpacity(0.7), fontSize: 14),
-      labelSmall: TextStyle(color: color.withOpacity(0.5), fontSize: 10, letterSpacing: 1.0),
-    );
-  }
-
-  // --- THEME DATA GENERATOR ---
-  static ThemeData getThemeData(String themeId) {
-    // Default to Dark
-    Color bg = themeBackgrounds[themeId] ?? pureBlack;
-    Color text = (themeId == 'Paper') ? Colors.black87 : pureWhite;
-    
-    return ThemeData(
-      brightness: (themeId == 'Paper') ? Brightness.light : Brightness.dark,
-      scaffoldBackgroundColor: bg,
-      primaryColor: text,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: themeAccents[themeId] ?? Colors.blue,
-        background: bg,
-        surface: bg,
-        onSurface: text,
-        brightness: (themeId == 'Paper') ? Brightness.light : Brightness.dark,
-      ),
-      textTheme: _buildTextTheme(text),
-      useMaterial3: true,
-      iconTheme: IconThemeData(color: text, size: 24),
-      dividerTheme: const DividerThemeData(color: Colors.white10, thickness: 1),
-    );
+  // [FIX] Helper method to support legacy code calling getThemeData
+  static ThemeData getThemeData(dynamic themeId) {
+    // If themeId is a bool (isDark), use that. If string, check value.
+    if (themeId is bool) {
+      return themeId ? darkTheme : lightTheme;
+    }
+    if (themeId.toString() == 'Light') return lightTheme;
+    return darkTheme; // Default to dark
   }
 }
