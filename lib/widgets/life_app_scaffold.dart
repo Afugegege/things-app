@@ -1,10 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:provider/provider.dart';
-import '../config/theme.dart';
-import '../providers/user_provider.dart';
-import 'dashboard_drawer.dart';
+import 'dashboard_drawer.dart'; 
 
 class LifeAppScaffold extends StatelessWidget {
   final String title;
@@ -12,6 +9,9 @@ class LifeAppScaffold extends StatelessWidget {
   final Widget? floatingActionButton;
   final List<Widget>? actions;
   final bool useDrawer;
+  final Widget? bottomSheet; // [ADDED]
+  final VoidCallback? onBack; // [ADDED] Custom back action
+  final VoidCallback? onOpenDrawer; // [ADDED] Allow opening parent drawer
 
   const LifeAppScaffold({
     super.key, 
@@ -20,108 +20,121 @@ class LifeAppScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.actions,
     this.useDrawer = true,
+    this.bottomSheet, // [ADDED]
+    this.onBack, // [ADDED]
+    this.onOpenDrawer,
   });
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = Provider.of<UserProvider>(context);
-    
-    // [FIX] Use the isDarkMode boolean directly for cleaner logic
-    final bool isDark = userProvider.isDarkMode;
-    final themeData = AppTheme.getThemeData(isDark);
-    
-    // Background Logic
-    final BoxDecoration bgDecoration = BoxDecoration(color: themeData.scaffoldBackgroundColor);
+    // Use the dynamic theme provided by main.dart
+    final themeData = Theme.of(context);
 
     return Theme(
-      data: themeData,
+      data: themeData.copyWith(
+        bottomSheetTheme: const BottomSheetThemeData(backgroundColor: Colors.transparent),
+      ),
       child: Scaffold(
-        backgroundColor: Colors.transparent,
-        drawer: useDrawer ? const DashboardDrawer() : null,
+        backgroundColor: themeData.scaffoldBackgroundColor,
+        // If external drawer control is provided, do NOT attach a local drawer, 
+        // effectively disabling the inner drawer so it doesn't conflict or use resources.
+        drawer: (useDrawer && onOpenDrawer == null) ? const DashboardDrawer() : null,
         floatingActionButton: floatingActionButton,
-        body: Container(
-          decoration: bgDecoration,
-          child: Stack(
-            children: [
-              // Content
-              Positioned.fill(
-                child: SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 100),
-                    child: child,
-                  ),
-                ),
+        bottomSheet: bottomSheet, // [ADDED] Pass to Scaffold
+      body: Stack(
+        children: [
+          // 1. Content Layer
+          Positioned.fill(
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 100), // Space for header
+                child: child,
               ),
-    
-              // Glass Header
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 100,
-                child: ClipRect(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: AppTheme.glassBlur, sigmaY: AppTheme.glassBlur),
-                    child: Container(
-                      color: themeData.colorScheme.surface.withOpacity(0.7),
-                      alignment: Alignment.bottomCenter,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                      child: SafeArea(
-                        bottom: false,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // Menu/Back Button
-                            if (useDrawer)
-                              Builder(
-                                builder: (context) => GestureDetector(
-                                  onTap: () => Scaffold.of(context).openDrawer(),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: themeData.iconTheme.color!.withOpacity(0.1),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(Icons.menu, color: themeData.iconTheme.color, size: 24),
-                                  ),
-                                ),
-                              )
-                            else
-                              GestureDetector(
-                                onTap: () => Navigator.pop(context),
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: themeData.iconTheme.color!.withOpacity(0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(CupertinoIcons.back, color: themeData.iconTheme.color, size: 20),
-                                ),
-                              ),
-                            
-                            // Title
-                            Text(
-                              title.toUpperCase(),
-                              style: themeData.textTheme.bodyLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 2.0,
-                              ),
+            ),
+          ),
+
+          // 2. Glass Header Layer
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 100,
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  // Use theme surface color with opacity for glass effect
+                  color: themeData.canvasColor.withOpacity(0.7),
+                  alignment: Alignment.bottomCenter,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Left Icon (Menu or Back)
+                        if (useDrawer)
+                          Builder(
+                            builder: (context) => GestureDetector(
+                              onTap: () {
+                                if (onOpenDrawer != null) {
+                                  onOpenDrawer!();
+                                } else {
+                                  Scaffold.of(context).openDrawer();
+                                }
+                              },
+                              child: _buildHeaderIcon(context, Icons.menu),
                             ),
-                            
-                            // Actions
-                            Row(children: actions ?? [const SizedBox(width: 40)]),
-                          ],
+                          )
+                        else if (Navigator.canPop(context) || onBack != null)
+                          GestureDetector(
+                            onTap: () {
+                              if (onBack != null) {
+                                onBack?.call();
+                              } else {
+                                Navigator.pop(context);
+                              }
+                            },
+                            child: _buildHeaderIcon(context, CupertinoIcons.back),
+                          )
+                        else
+                          const SizedBox(width: 40), // Spacer
+
+                        // Center Title
+                        Text(
+                          title.toUpperCase(),
+                          style: themeData.textTheme.bodyLarge?.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 3.0,
+                          ),
                         ),
-                      ),
+
+                        // Right Actions
+                        Row(children: actions ?? [const SizedBox(width: 40)]),
+                      ],
                     ),
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderIcon(BuildContext context, IconData icon) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: theme.iconTheme.color?.withOpacity(0.1),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, color: theme.iconTheme.color, size: 20),
     );
   }
 }

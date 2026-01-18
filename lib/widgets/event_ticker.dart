@@ -49,7 +49,7 @@ class EventTicker extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             event.title,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+            style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.bold, fontSize: 16),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

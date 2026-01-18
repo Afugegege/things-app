@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart'; // [NEW] Import Geolocator
+import 'package:geolocator/geolocator.dart'; 
 import '../services/storage_service.dart';
 
 class RoamProvider extends ChangeNotifier {
@@ -12,7 +12,7 @@ class RoamProvider extends ChangeNotifier {
   Duration _duration = Duration.zero;
   double _distanceKm = 0.0;
   Timer? _timer;
-  StreamSubscription<Position>? _positionStream; // [NEW] Stream Subscription
+  StreamSubscription<Position>? _positionStream;
 
   // History & Replay
   List<Map<String, dynamic>> _trips = [];
@@ -25,6 +25,7 @@ class RoamProvider extends ChangeNotifier {
     _loadTrips();
   }
 
+  // --- GETTERS ---
   bool get isRecording => _isRecording;
   List<LatLng> get currentPath => _currentPath;
   Duration get duration => _duration;
@@ -33,11 +34,23 @@ class RoamProvider extends ChangeNotifier {
   bool get isReplaying => _isReplaying;
   LatLng? get replayPosition => _replayPosition;
 
+  // [FIX] Added formatted string for the UI
+  String get durationString {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitMinutes = twoDigits(_duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(_duration.inSeconds.remainder(60));
+    return "${twoDigits(_duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+  }
+
   // Calculate Average Pace (min/km)
   String get averagePace {
-    if (_distanceKm <= 0) return "0:00";
+    if (_distanceKm <= 0.001) return "0:00"; // Prevent division by zero
     final totalMinutes = _duration.inSeconds / 60.0;
     final paceDecimal = totalMinutes / _distanceKm;
+    
+    // Cap pace display for sanity (e.g. if GPS jumps)
+    if (paceDecimal > 59) return "59:59"; 
+
     final minutes = paceDecimal.floor();
     final seconds = ((paceDecimal - minutes) * 60).round();
     return "$minutes:${seconds.toString().padLeft(2, '0')}";
@@ -51,15 +64,19 @@ class RoamProvider extends ChangeNotifier {
   // --- RECORDING ---
   
   Future<void> startRecording() async {
-    // [NEW] Check Permissions first
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
+    if (!serviceEnabled) {
+      // Ideally show error to user, for now return
+      return;
+    }
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) return;
     }
+    
+    if (permission == LocationPermission.deniedForever) return;
 
     _isRecording = true;
     _currentPath = [];
@@ -68,17 +85,21 @@ class RoamProvider extends ChangeNotifier {
     _distanceKm = 0.0;
     
     // Start Time Timer
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _duration = DateTime.now().difference(_startTime!);
-      notifyListeners();
+      if (_startTime != null) {
+        _duration = DateTime.now().difference(_startTime!);
+        notifyListeners();
+      }
     });
 
-    // [NEW] Start Location Stream
+    // Start Location Stream
     const LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 5, // Only notify if moved 5 meters
     );
 
+    _positionStream?.cancel();
     _positionStream = Geolocator.getPositionStream(locationSettings: locationSettings)
         .listen((Position position) {
       addPoint(LatLng(position.latitude, position.longitude));
@@ -90,11 +111,12 @@ class RoamProvider extends ChangeNotifier {
   void addPoint(LatLng point) {
     if (!_isRecording) return;
     
-    // Simple distance filter to reduce jitter
+    // Distance Filter
     if (_currentPath.isNotEmpty) {
       const Distance distance = Distance();
       final double move = distance.as(LengthUnit.Meter, _currentPath.last, point);
-      // We already filter via Stream, but this is a double-check
+      
+      // Filter jitter (move > 2 meters)
       if (move > 2) { 
         _distanceKm += (move / 1000.0);
         _currentPath.add(point);
@@ -108,14 +130,16 @@ class RoamProvider extends ChangeNotifier {
 
   void stopRecording(String type) {
     _timer?.cancel();
-    _positionStream?.cancel(); // [NEW] Stop listening to GPS
+    _positionStream?.cancel();
     _isRecording = false;
 
-    if (_currentPath.length > 2) {
+    // Only save meaningful trips (> 2 points or > 10 meters)
+    if (_currentPath.length > 2 && _distanceKm > 0.01) {
       final newTrip = {
         'id': DateTime.now().toIso8601String(),
         'type': type, // 'Run', 'Walk', 'Cycle'
         'date': DateTime.now().toIso8601String(),
+        'duration': durationString, // Save formatted string for display
         'duration_sec': _duration.inSeconds,
         'distance_km': _distanceKm,
         'pace': averagePace,
@@ -131,6 +155,8 @@ class RoamProvider extends ChangeNotifier {
 
   // --- REPLAY SYSTEM ---
   void startReplay(Map<String, dynamic> trip) {
+    if (trip['points'] == null) return;
+
     final List pointsJson = trip['points'];
     final List<LatLng> path = pointsJson.map((p) => LatLng(p['lat'], p['lng'])).toList();
 
@@ -141,7 +167,7 @@ class RoamProvider extends ChangeNotifier {
     _currentPath = path; 
     
     _replayTimer?.cancel();
-    _replayTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+    _replayTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if (_replayIndex < path.length) {
         _replayPosition = path[_replayIndex];
         _replayIndex++;

@@ -1,78 +1,72 @@
-// file: lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_quill/flutter_quill.dart'; 
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-// Providers
-import 'providers/notes_provider.dart';
+import 'config/theme.dart';
 import 'providers/user_provider.dart';
 import 'providers/chat_provider.dart';
-import 'providers/money_provider.dart'; 
+import 'providers/notes_provider.dart';
 import 'providers/tasks_provider.dart';
+import 'providers/money_provider.dart';
+import 'providers/events_provider.dart';
 import 'providers/roam_provider.dart';
-import 'providers/events_provider.dart'; // [FIX]: Ensured this import exists
+import 'providers/flashcards_provider.dart';
+import 'providers/bucket_list_provider.dart';
 
-// Screens & Services
-import 'screens/main_scaffold.dart';
-import 'services/notification_service.dart';
 import 'services/storage_service.dart';
-import 'providers/flashcards_provider.dart'; // [NEW]
-
+import 'screens/auth/login_screen.dart';
+import 'screens/main_scaffold.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
-    debugPrint("Warning: .env file not found or empty.");
-  }
-
-  await NotificationService.init();
+  await dotenv.load(fileName: ".env");
   await StorageService.init();
+
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+  );
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => UserProvider()),
-        ChangeNotifierProvider(create: (_) => NotesProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
-        ChangeNotifierProvider(create: (_) => MoneyProvider()),
+        ChangeNotifierProvider(create: (_) => NotesProvider()),
         ChangeNotifierProvider(create: (_) => TasksProvider()),
+        ChangeNotifierProvider(create: (_) => MoneyProvider()),
+        ChangeNotifierProvider(create: (_) => EventsProvider()),
         ChangeNotifierProvider(create: (_) => RoamProvider()),
-        ChangeNotifierProvider(create: (_) => EventsProvider()), 
         ChangeNotifierProvider(create: (_) => FlashcardsProvider()),
+        ChangeNotifierProvider(create: (_) => BucketListProvider()),
       ],
-      child: const MyApp(),
+      child: const LifeOSApp(),
     ),
   );
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class LifeOSApp extends StatelessWidget {
+  const LifeOSApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // [FIX] Listen to UserProvider for dynamic theme changes
+    final userProvider = Provider.of<UserProvider>(context);
+
     return MaterialApp(
+      title: 'LifeOS',
       debugShowCheckedModeBanner: false,
-      title: 'Things',
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: Colors.black,
-        // [FIX]: Removed deprecated 'useMaterial3'
+      
+      // DYNAMIC THEME GENERATION
+      theme: AppTheme.createTheme(
+        isDark: userProvider.isDarkMode,
+        accentColor: userProvider.accentColor,
       ),
-
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        FlutterQuillLocalizations.delegate,
-      ],
-
-      supportedLocales: FlutterQuillLocalizations.supportedLocales,
-
-      home: const MainScaffold(),
+      
+      home: userProvider.user.id.isEmpty 
+          ? const LoginScreen() 
+          : const MainScaffold(),
     );
   }
 }

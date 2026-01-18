@@ -48,7 +48,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 90),

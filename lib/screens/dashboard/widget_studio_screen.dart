@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:path_provider/path_provider.dart';
@@ -36,7 +36,7 @@ class _WidgetStudioScreenState extends State<WidgetStudioScreen> {
       id: const Uuid().v4(),
       type: type,
       content: content,
-      x: 100, // Default start position
+      x: 100,
       y: 100,
       scale: 1.0,
       rotation: 0.0,
@@ -73,73 +73,8 @@ class _WidgetStudioScreenState extends State<WidgetStudioScreen> {
     }
   }
 
-  // --- DRAWING LOGIC ---
-  Future<void> _openDoodlePad() async {
-    final control = HandSignatureControl();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.black,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel", style: TextStyle(color: Colors.grey))),
-                const Text("Draw Sticker", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                TextButton(
-                  onPressed: () async {
-                    if (control.paths.isNotEmpty) {
-                      final ByteData? data = await control.toImage(color: Colors.white);
-                      if (data != null) {
-                        final buffer = data.buffer.asUint8List();
-                        final dir = await getApplicationDocumentsDirectory();
-                        final path = '${dir.path}/sticker_${DateTime.now().millisecondsSinceEpoch}.png';
-                        await File(path).writeAsBytes(buffer);
-                        _addLayer('doodle', path); // Add as doodle layer
-                        if (mounted) Navigator.pop(ctx);
-                      }
-                    }
-                  },
-                  child: const Text("Done", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(border: Border.all(color: Colors.white24), borderRadius: BorderRadius.circular(20)),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: HandSignature(
-                    control: control,
-                    color: Colors.white,
-                    width: 4.0,
-                    maxWidth: 8.0,
-                    type: SignatureDrawType.shape,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                IconButton(icon: const Icon(Icons.undo, color: Colors.white), onPressed: () => control.stepBack()),
-                IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent), onPressed: () => control.clear()),
-              ],
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
-  // --- ENHANCED EMOJI PICKER ---
+  // --- EMOJI PICKER (Themed) ---
   void _showEmojiPicker() {
-    // Comprehensive emoji list
     final List<String> emojis = [
       "🔥", "✨", "💀", "🚀", "💡", "❤️", "👀", "✅", "🎉", "💯", "📌", "🍔",
       "🌿", "🧠", "💼", "✈️", "🎵", "💰", "⚡", "🛑", "⚠️", "❓", "🔔", "⏰",
@@ -151,27 +86,20 @@ class _WidgetStudioScreenState extends State<WidgetStudioScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1C1C1E),
-      isScrollControlled: true, 
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => SizedBox(
+      isScrollControlled: true,
+      builder: (_) => Container(
         height: MediaQuery.of(context).size.height * 0.5,
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 10),
-              width: 40, height: 4, 
-              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
-            ),
-            const Text("Add Sticker", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 10),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 20),
+            const Text("ADD STICKER", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 2)),
+            const SizedBox(height: 15),
             Expanded(
               child: GridView.builder(
-                padding: const EdgeInsets.all(20),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 6,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                ),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 6, mainAxisSpacing: 10, crossAxisSpacing: 10),
                 itemCount: emojis.length,
                 itemBuilder: (context, index) {
                   return GestureDetector(
@@ -181,10 +109,7 @@ class _WidgetStudioScreenState extends State<WidgetStudioScreen> {
                     },
                     child: Container(
                       alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
                       child: Text(emojis[index], style: const TextStyle(fontSize: 24)),
                     ),
                   );
@@ -203,19 +128,19 @@ class _WidgetStudioScreenState extends State<WidgetStudioScreen> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        leading: const CloseButton(color: Colors.white),
-        title: const Text("Widget Studio", style: TextStyle(color: Colors.white)),
+        elevation: 0,
+        leading: IconButton(icon: const Icon(CupertinoIcons.xmark, color: Colors.white), onPressed: () => Navigator.pop(context)),
+        title: const Text("WIDGET STUDIO", style: TextStyle(color: Colors.white, fontSize: 14, letterSpacing: 2)),
+        centerTitle: true,
         actions: [
-          IconButton(icon: const Icon(Icons.check, color: Colors.greenAccent), onPressed: _saveDesign)
+          IconButton(icon: const Icon(CupertinoIcons.check_mark, color: Colors.greenAccent), onPressed: _saveDesign)
         ],
       ),
       body: Stack(
         children: [
-          // CENTER PREVIEW AREA
           Center(
             child: Container(
-              width: 350,
-              height: 350,
+              width: 350, height: 350,
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.white12),
                 borderRadius: BorderRadius.circular(20),
@@ -223,14 +148,7 @@ class _WidgetStudioScreenState extends State<WidgetStudioScreen> {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // BASE WIDGET
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: Center(child: WidgetFactory.build(context, widget.note)),
-                    ),
-                  ),
-                  
-                  // LAYERS (Using DecorationItem with MatrixGestureDetector)
+                  Positioned.fill(child: IgnorePointer(child: Center(child: WidgetFactory.build(context, widget.note)))),
                   ..._layers.map((layer) => DecorationItem(
                         layer: layer,
                         isSelected: layer.id == _selectedLayerId,
@@ -241,23 +159,17 @@ class _WidgetStudioScreenState extends State<WidgetStudioScreen> {
               ),
             ),
           ),
-
-          // BOTTOM TOOLBAR
           Positioned(
-            bottom: 30, left: 20, right: 20,
+            bottom: 40, left: 30, right: 30,
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 15),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1C1C1E),
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: Colors.white12),
-              ),
+              decoration: BoxDecoration(color: const Color(0xFF1C1C1E), borderRadius: BorderRadius.circular(40), border: Border.all(color: Colors.white12)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _toolBtn(Icons.emoji_emotions_outlined, "Emoji", _showEmojiPicker),
-                  _toolBtn(Icons.draw, "Doodle", _openDoodlePad),
-                  _toolBtn(Icons.delete_outline, "Remove", _deleteSelected, color: Colors.redAccent),
+                  _toolBtn(CupertinoIcons.smiley, "Emoji", _showEmojiPicker),
+                  _toolBtn(CupertinoIcons.pencil_outline, "Doodle", _openDoodlePad), // Ensure _openDoodlePad exists or is imported
+                  _toolBtn(CupertinoIcons.trash, "Remove", _deleteSelected, color: Colors.redAccent),
                 ],
               ),
             ),
@@ -273,10 +185,75 @@ class _WidgetStudioScreenState extends State<WidgetStudioScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 26),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: color, fontSize: 10)),
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 5),
+          Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
         ],
+      ),
+    );
+  }
+  
+  // Reuse existing _openDoodlePad logic from your original file here...
+  Future<void> _openDoodlePad() async {
+    final control = HandSignatureControl();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel", style: TextStyle(color: Colors.grey))),
+                const Text("DRAW", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                TextButton(
+                  onPressed: () async {
+                    if (control.paths.isNotEmpty) {
+                      final ByteData? data = await control.toImage(color: Colors.white);
+                      if (data != null) {
+                        final buffer = data.buffer.asUint8List();
+                        final dir = await getApplicationDocumentsDirectory();
+                        final path = '${dir.path}/sticker_${DateTime.now().millisecondsSinceEpoch}.png';
+                        await File(path).writeAsBytes(buffer);
+                        _addLayer('doodle', path); 
+                        if (mounted) Navigator.pop(ctx);
+                      }
+                    }
+                  },
+                  child: const Text("Done", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.only(top: 20),
+                decoration: BoxDecoration(border: Border.all(color: Colors.white24), borderRadius: BorderRadius.circular(20)),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: HandSignature(
+                    control: control,
+                    color: Colors.white,
+                    width: 4.0,
+                    maxWidth: 8.0,
+                    type: SignatureDrawType.shape,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                IconButton(icon: const Icon(CupertinoIcons.arrow_turn_up_left, color: Colors.white), onPressed: () => control.stepBack()),
+                IconButton(icon: const Icon(CupertinoIcons.trash, color: Colors.redAccent), onPressed: () => control.clear()),
+              ],
+            )
+          ],
+        ),
       ),
     );
   }

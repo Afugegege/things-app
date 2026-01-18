@@ -5,6 +5,7 @@ class User {
   final String? avatarPath;
   final List<String> aiMemory;
   final Map<String, dynamic> preferences;
+  final List<String> dockItems;
   final bool isPro;
 
   Map<String, dynamic> toJson() => {
@@ -15,6 +16,7 @@ class User {
     'aiMemory': aiMemory,
     'preferences': preferences,
     'isPro': isPro,
+    'dockItems': dockItems,
   };
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,7 @@ class User {
       aiMemory: List<String>.from(json['aiMemory'] ?? []),
       preferences: Map<String, dynamic>.from(json['preferences'] ?? {}),
       isPro: json['isPro'] ?? false,
+      dockItems: List<String>.from(json['dockItems'] ?? ['dashboard', 'notes', 'tasks', 'ai', 'profile']),
     );
   }
 
@@ -37,9 +40,9 @@ class User {
     required this.aiMemory,
     required this.preferences,
     this.isPro = false,
+    this.dockItems = const ['dashboard', 'notes', 'tasks', 'ai', 'profile'],
   });
 
-  // FIX: This method was missing!
   User copyWith({
     String? id,
     String? name,
@@ -48,6 +51,7 @@ class User {
     List<String>? aiMemory,
     Map<String, dynamic>? preferences,
     bool? isPro,
+    List<String>? dockItems,
   }) {
     return User(
       id: id ?? this.id,
@@ -57,6 +61,7 @@ class User {
       aiMemory: aiMemory ?? this.aiMemory,
       preferences: preferences ?? this.preferences,
       isPro: isPro ?? this.isPro,
+      dockItems: dockItems ?? this.dockItems,
     );
   }
 }

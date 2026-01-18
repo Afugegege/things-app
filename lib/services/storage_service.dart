@@ -38,6 +38,14 @@ class StorageService {
     } catch (e) { return []; }
   }
 
+  static const String _foldersKey = 'folders_data';
+  static Future<void> saveFolders(List<String> folders) async {
+    await _prefs.setStringList(_foldersKey, folders);
+  }
+  static List<String> loadFolders() {
+    return _prefs.getStringList(_foldersKey) ?? [];
+  }
+
   static const String _userKey = 'user_data';
   static Future<void> saveUser(User user) async {
     final String data = jsonEncode(user.toJson());
@@ -93,5 +101,39 @@ class StorageService {
     final String? data = _prefs.getString(_pulseKey);
     if (data == null) return {};
     try { return jsonDecode(data); } catch (e) { return {}; }
+  }
+
+  static const String _chatKey = 'chat_history';
+
+  static Future<void> saveChatHistory(List<Map<String, dynamic>> messages) async {
+    final String data = jsonEncode(messages);
+    await _prefs.setString(_chatKey, data);
+  }
+
+  static List<Map<String, dynamic>> loadChatHistory() {
+    final String? data = _prefs.getString(_chatKey);
+    if (data == null) return [];
+    try {
+      return List<Map<String, dynamic>>.from(jsonDecode(data));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // --- FOLDER WIDGETS ---
+  static const String _folderWidgetsKey = 'folder_widgets_config';
+  static Future<void> saveFolderWidgets(Map<String, List<String>> config) async {
+    final String data = jsonEncode(config);
+    await _prefs.setString(_folderWidgetsKey, data);
+  }
+  static Map<String, List<String>> loadFolderWidgets() {
+    final String? data = _prefs.getString(_folderWidgetsKey);
+    if (data == null) return {};
+    try {
+      Map<String, dynamic> raw = jsonDecode(data);
+      return raw.map((k, v) => MapEntry(k, List<String>.from(v)));
+    } catch (e) {
+      return {};
+    }
   }
 }

@@ -8,6 +8,7 @@ import '../../providers/notes_provider.dart';
 import '../../models/note_model.dart';
 import '../../widgets/dashboard_drawer.dart';
 import '../../widgets/glass_container.dart';
+import '../../widgets/life_app_scaffold.dart'; // [UPDATED]
 import '../../widgets/smart_widgets/widget_factory.dart';
 import '../notes/note_editor_screen.dart';
 
@@ -19,8 +20,6 @@ class BrainScreen extends StatefulWidget {
 }
 
 class _BrainScreenState extends State<BrainScreen> {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  
   bool _isSearching = false;
   bool _showFilters = false; 
   final TextEditingController _searchController = TextEditingController();
@@ -34,6 +33,11 @@ class _BrainScreenState extends State<BrainScreen> {
   @override
   Widget build(BuildContext context) {
     final notesProvider = Provider.of<NotesProvider>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+
     List<Note> displayedNotes = notesProvider.notes;
 
     // Filter Logic
@@ -55,159 +59,178 @@ class _BrainScreenState extends State<BrainScreen> {
       ).toList();
     }
 
-    return Scaffold(
-      key: _scaffoldKey, 
-      backgroundColor: Colors.black,
-      drawer: const DashboardDrawer(), 
+    // [UPDATED] Use LifeAppScaffold
+    return LifeAppScaffold(
+      // Dynamic Title
+      title: _isMultiSelect ? "${_selectedIds.length} SELECTED" : "BRAIN",
       
-      floatingActionButton: _isMultiSelect ? null : FloatingActionButton(
-        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NoteEditorScreen())),
-        backgroundColor: Colors.white,
-        child: const Icon(Icons.add, color: Colors.black),
+      // Header Actions
+      actions: [
+        if (_isMultiSelect)
+          IconButton(icon: const Icon(CupertinoIcons.clear_circled), onPressed: _exitMultiSelect)
+        else ...[
+          IconButton(
+            icon: Icon(_isSearching ? CupertinoIcons.clear : CupertinoIcons.search, color: textColor),
+            onPressed: () => setState(() { 
+              _isSearching = !_isSearching; 
+              if (!_isSearching) _searchController.clear(); 
+            }),
+          ),
+          IconButton(
+            icon: Icon(Icons.filter_list, color: _showFilters ? Colors.blueAccent : textColor),
+            onPressed: () => setState(() => _showFilters = !_showFilters),
+          ),
+        ]
+      ],
+
+      // Floating Action Button
+      floatingActionButton: _isMultiSelect ? null : Padding(
+        padding: const EdgeInsets.only(bottom: 110),
+        child: FloatingActionButton(
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NoteEditorScreen())),
+          backgroundColor: isDark ? Colors.white : Colors.black, // High Contrast
+          elevation: 0,
+          shape: const CircleBorder(),
+          child: Icon(CupertinoIcons.add, color: isDark ? Colors.black : Colors.white, size: 28),
+        ),
       ),
-      
-      body: SafeArea(
-        child: Column(
+
+      // Multi-Select Bottom Sheet
+      bottomSheet: _isMultiSelect ? Container(
+        margin: const EdgeInsets.fromLTRB(20, 0, 20, 110),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(25), 
+          border: Border.all(color: theme.dividerColor),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))]
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            // --- HEADER ---
+            IconButton(icon: const Icon(CupertinoIcons.pin, color: Colors.orangeAccent), onPressed: () {
+                for (var id in _selectedIds) notesProvider.togglePin(id);
+                _exitMultiSelect();
+            }),
+            if (_selectedIds.length > 1)
+              IconButton(icon: const Icon(CupertinoIcons.arrow_merge, color: Colors.blueAccent), onPressed: () {
+                  notesProvider.mergeNotes(_selectedIds.toList());
+                  _exitMultiSelect();
+              }),
+            IconButton(icon: const Icon(CupertinoIcons.trash, color: Colors.redAccent), onPressed: () => _deleteSelected(notesProvider)),
+          ],
+        ),
+      ) : null,
+
+      child: Column(
+        children: [
+          const SizedBox(height: 10),
+
+          // SEARCH BAR (Fixed top style)
+          if (_isSearching)
             Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (_isMultiSelect)
-                        IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: _exitMultiSelect)
-                      else
-                        IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => _scaffoldKey.currentState?.openDrawer()),
-                      
-                      Text(
-                        _isMultiSelect ? "${_selectedIds.length} Selected" : "BRAIN", 
-                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 2)
-                      ),
-                      
-                      if (!_isMultiSelect)
-                        Row(children: [
-                          IconButton(
-                            icon: Icon(_isSearching ? Icons.close : CupertinoIcons.search, color: Colors.white),
-                            onPressed: () => setState(() { _isSearching = !_isSearching; if(!_isSearching) _searchController.clear(); }),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.filter_list, color: _showFilters ? Colors.blueAccent : Colors.white),
-                            onPressed: () => setState(() => _showFilters = !_showFilters),
-                          ),
-                        ])
-                      else
-                        IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => _deleteSelected(notesProvider)),
-                    ],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+              child: GlassContainer(
+                height: 50,
+                borderRadius: 15,
+                opacity: isDark ? 0.2 : 0.05,
+                child: TextField(
+                  controller: _searchController,
+                  style: TextStyle(color: textColor),
+                  autofocus: true,
+                  textAlignVertical: TextAlignVertical.center,
+                  decoration: InputDecoration(
+                    hintText: "Search thoughts...", 
+                    border: InputBorder.none, 
+                    prefixIcon: Icon(CupertinoIcons.search, color: secondaryTextColor, size: 20),
+                    hintStyle: TextStyle(color: secondaryTextColor),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                    isCollapsed: true,
                   ),
+                  onChanged: (v) => setState(() {}),
+                ),
+              ),
+            ),
 
-                  if (_isSearching)
-                    GlassContainer(
-                      margin: const EdgeInsets.only(top: 10),
-                      padding: const EdgeInsets.symmetric(horizontal: 15),
-                      height: 50,
-                      borderRadius: 15,
-                      opacity: 0.15,
-                      child: TextField(
-                        controller: _searchController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(hintText: "Search...", border: InputBorder.none, icon: Icon(Icons.search, color: Colors.white38)),
-                        onChanged: (v) => setState(() {}),
-                      ),
-                    ),
-
-                  if (_showFilters)
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.only(top: 10),
-                      child: Row(
-                        children: [
-                          _buildFilterChip("All"),
-                          const SizedBox(width: 10),
-                          _buildFilterChip("Visual"),
-                          const SizedBox(width: 10),
-                          _buildFilterChip("Audio"),
-                        ],
-                      ),
-                    ),
+          // FILTERS
+          if (_showFilters && !_isMultiSelect)
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: [
+                  _buildFilterChip("All"),
+                  _buildFilterChip("Visual"),
+                  _buildFilterChip("Audio"),
                 ],
               ),
             ),
 
-            // --- GRID ---
-            Expanded(
-              child: displayedNotes.isEmpty
-                  ? Center(child: Text("No notes found", style: TextStyle(color: Colors.white.withOpacity(0.3))))
-                  : MasonryGridView.count(
-                      padding: const EdgeInsets.fromLTRB(15, 0, 15, 100),
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                      itemCount: displayedNotes.length,
-                      itemBuilder: (context, index) {
-                        final note = displayedNotes[index];
-                        final isSelected = _selectedIds.contains(note.id);
-                        
-                        return GestureDetector(
-                          onTap: () {
-                            if (_isMultiSelect) _toggleSelection(note.id);
-                            else Navigator.push(context, MaterialPageRoute(builder: (_) => NoteEditorScreen(note: note)));
-                          },
-                          onLongPress: () {
-                            setState(() {
-                              _isMultiSelect = true;
-                              _selectedIds.add(note.id);
-                            });
-                          },
+          const SizedBox(height: 15),
+
+          // NOTE GRID
+          Expanded(
+            child: displayedNotes.isEmpty
+                ? Center(child: Text("No thoughts found.", style: TextStyle(color: secondaryTextColor)))
+                : MasonryGridView.count(
+                    padding: const EdgeInsets.fromLTRB(15, 0, 15, 100),
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    itemCount: displayedNotes.length,
+                    itemBuilder: (context, index) {
+                      final note = displayedNotes[index];
+                      final isSelected = _selectedIds.contains(note.id);
+                      
+                      return GestureDetector(
+                        onTap: () {
+                          if (_isMultiSelect) _toggleSelection(note.id);
+                          else Navigator.push(context, MaterialPageRoute(builder: (_) => NoteEditorScreen(note: note)));
+                        },
+                        onLongPress: () {
+                          setState(() {
+                            _isMultiSelect = true;
+                            _selectedIds.add(note.id);
+                          });
+                        },
+                        child: AnimatedScale(
+                          scale: isSelected ? 0.95 : 1.0,
+                          duration: const Duration(milliseconds: 150),
                           child: Stack(
                             children: [
-                              WidgetFactory.build(context, note),
+                              AbsorbPointer(absorbing: _isMultiSelect, child: WidgetFactory.build(context, note)),
+                              
+                              // Selection Overlay
                               if (_isMultiSelect)
                                 Positioned.fill(
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color: isSelected ? Colors.blueAccent.withOpacity(0.3) : Colors.transparent,
+                                      color: isSelected ? Colors.blueAccent.withOpacity(0.3) : Colors.black.withOpacity(0.5),
                                       borderRadius: BorderRadius.circular(20),
                                       border: isSelected ? Border.all(color: Colors.blueAccent, width: 3) : null,
                                     ),
                                     alignment: Alignment.topRight,
                                     padding: const EdgeInsets.all(10),
-                                    child: Icon(isSelected ? Icons.check_circle : Icons.circle_outlined, color: Colors.white),
+                                    child: Icon(isSelected ? CupertinoIcons.check_mark_circled_solid : CupertinoIcons.circle, color: Colors.white),
                                   ),
                                 ),
+
+                              // Pin Indicator
                               if (note.isPinned && !_isMultiSelect)
-                                const Positioned(top: 10, right: 10, child: Icon(CupertinoIcons.pin_fill, color: Colors.white54, size: 14)),
+                                const Positioned(
+                                  top: 10, right: 10, 
+                                  child: Icon(CupertinoIcons.pin_fill, color: Colors.orangeAccent, size: 14)
+                                ),
                             ],
                           ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
-      
-      bottomSheet: _isMultiSelect ? Container(
-        color: const Color(0xFF1C1C1E),
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 40),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton(icon: const Icon(CupertinoIcons.pin, color: Colors.white), onPressed: () {
-                for (var id in _selectedIds) notesProvider.togglePin(id);
-                _exitMultiSelect();
-            }),
-            if (_selectedIds.length > 1)
-              IconButton(icon: const Icon(Icons.merge_type, color: Colors.white), onPressed: () {
-                  notesProvider.mergeNotes(_selectedIds.toList());
-                  _exitMultiSelect();
-              }),
-            IconButton(icon: const Icon(CupertinoIcons.delete, color: Colors.redAccent), onPressed: () => _deleteSelected(notesProvider)),
-          ],
-        ),
-      ) : null,
     );
   }
 
@@ -227,23 +250,35 @@ class _BrainScreenState extends State<BrainScreen> {
   }
 
   void _deleteSelected(NotesProvider provider) {
-    provider.deleteNotes(_selectedIds.toList());
+    for (var id in _selectedIds) {
+      provider.deleteNotes(id);
+    }
     _exitMultiSelect();
   }
 
   Widget _buildFilterChip(String label) {
     final bool isSelected = _activeFilter == label;
+    final theme = Theme.of(context);
+    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
     return GestureDetector(
       onTap: () => setState(() => _activeFilter = label),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      child: Container(
+        margin: const EdgeInsets.only(right: 10),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.white.withOpacity(0.1),
+          color: isSelected ? textColor : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? Colors.white : Colors.transparent),
+          border: Border.all(color: isSelected ? Colors.transparent : theme.dividerColor),
         ),
-        child: Text(label, style: TextStyle(color: isSelected ? Colors.black : Colors.white70, fontWeight: FontWeight.bold, fontSize: 12)),
+        child: Text(
+          label, 
+          style: TextStyle(
+            color: isSelected ? theme.scaffoldBackgroundColor : textColor.withOpacity(0.7), 
+            fontWeight: FontWeight.bold, 
+            fontSize: 12
+          )
+        ),
       ),
     );
   }

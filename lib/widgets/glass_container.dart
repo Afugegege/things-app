@@ -32,6 +32,7 @@ class GlassContainer extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
         child: Stack(
+          alignment: Alignment.center,
           children: [
             // Layer 1: Blur Effect
             Positioned.fill(

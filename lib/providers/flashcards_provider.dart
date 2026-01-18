@@ -15,7 +15,7 @@ class FlashcardsProvider extends ChangeNotifier {
 
   void _loadSampleData() {
     // Add Japanese Sample
-    final japCards = japaneseStarterDeck.map((raw) => Flashcard(
+    final japCards = japaneseN5N4CompleteDeck.map((raw) => Flashcard(
       question: raw['q']!,
       answer: raw['a']!,
     )).toList();
@@ -66,6 +66,11 @@ class FlashcardsProvider extends ChangeNotifier {
 
   void deleteDeck(String id) {
     _decks.removeWhere((d) => d.id == id);
+    notifyListeners();
+  }
+
+  void addDeck(FlashcardDeck deck) {
+    _decks.insert(0, deck);
     notifyListeners();
   }
 

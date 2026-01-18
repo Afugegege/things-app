@@ -3,9 +3,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../../widgets/glass_container.dart';
-import '../../widgets/dashboard_drawer.dart';
+import '../../widgets/life_app_scaffold.dart';
 import '../../providers/flashcards_provider.dart';
 import '../../models/flashcard_model.dart';
+import '../../services/ai_service.dart';
+import '../../providers/user_provider.dart';
+import 'ai_deck_review_screen.dart';
 
 class FlashCardScreen extends StatefulWidget {
   const FlashCardScreen({super.key});
@@ -22,56 +25,63 @@ class _FlashCardScreenState extends State<FlashCardScreen> {
   Widget build(BuildContext context) {
     final provider = Provider.of<FlashcardsProvider>(context);
     final decks = provider.decks;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     
-    // Dynamic Colors
-    final bgColor = Theme.of(context).scaffoldBackgroundColor;
-    final textColor = Theme.of(context).textTheme.bodyLarge!.color!;
+    // Determine Title & Actions based on state
+    String title = "LIBRARY";
+    List<Widget>? actions;
+    Widget? fab;
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      resizeToAvoidBottomInset: false,
-      drawer: const DashboardDrawer(),
-      appBar: _isStudying ? null : AppBar(
-        title: Text(_activeDeck != null ? _activeDeck!.title : "Library", 
-          style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-        centerTitle: true,
-        elevation: 0,
-        iconTheme: IconThemeData(color: textColor),
-        leading: _activeDeck != null 
-          ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() => _activeDeck = null))
-          : Builder(builder: (c) => IconButton(icon: const Icon(Icons.menu), onPressed: () => Scaffold.of(c).openDrawer())),
-        actions: [
-          if (_activeDeck == null)
-            IconButton(
-              icon: const Icon(Icons.add), 
-              onPressed: () => _showCreateDeckDialog(context, null)
-            ),
-          if (_activeDeck != null)
-             IconButton(
-              icon: const Icon(Icons.more_horiz), 
-              onPressed: () => _showDeckOptions(context, _activeDeck!),
-            ),
-        ],
-      ),
-      // REMOVED STACK AND AMBIENT BACKGROUNDS
-      body: SafeArea(
-        child: _isStudying 
+    if (_isStudying) {
+      title = "STUDY MODE";
+    } else if (_activeDeck != null) {
+      title = _activeDeck!.title.toUpperCase();
+      actions = [
+        IconButton(
+          icon: Icon(CupertinoIcons.ellipsis_circle, color: theme.textTheme.bodyLarge?.color), 
+          onPressed: () => _showDeckOptions(context, _activeDeck!),
+        ),
+      ];
+    } else {
+      actions = [
+        IconButton(
+          icon: Icon(CupertinoIcons.add, color: theme.textTheme.bodyLarge?.color), 
+          onPressed: () => _showCreateDeckDialog(context, null)
+        ),
+      ];
+    }
+
+    // [UPDATED] Use LifeAppScaffold
+    return LifeAppScaffold(
+      title: title,
+      useDrawer: _activeDeck == null && !_isStudying, // Only show drawer at root
+      actions: actions,
+      onBack: (_activeDeck != null || _isStudying) ? () {
+        setState(() {
+          if (_isStudying) {
+            _isStudying = false;
+          } else {
+            _activeDeck = null;
+          }
+        });
+      } : null,
+      // Custom back button logic for navigation within the screen
+      child: _isStudying
           ? _StudyView(deck: _activeDeck!, onExit: () => setState(() => _isStudying = false))
-          : (_activeDeck == null ? _DeckGridView(decks: decks, onOpen: (d) => setState(() => _activeDeck = d)) 
-                                 : _DeckDetailView(deck: _activeDeck!)),
-      ),
+          : _activeDeck == null
+              ? _DeckGridView(decks: decks, onOpen: (d) => setState(() => _activeDeck = d))
+              : _DeckDetailView(deck: _activeDeck!),
     );
   }
 
-  // --- DIALOGS ---
+  // --- DIALOGS (Themed) ---
 
   void _showCreateDeckDialog(BuildContext context, FlashcardDeck? existing) {
-    final provider = Provider.of<FlashcardsProvider>(context, listen: false);
+    final accentColor = Provider.of<UserProvider>(context, listen: false).accentColor;
     final titleCtrl = TextEditingController(text: existing?.title);
     final catCtrl = TextEditingController(text: existing?.category);
-    Color selectedColor = existing?.color ?? Colors.blueAccent;
-    final textColor = Theme.of(context).textTheme.bodyLarge!.color!;
+    Color selectedColor = existing?.color ?? accentColor;
 
     showModalBottomSheet(
       context: context,
@@ -79,145 +89,212 @@ class _FlashCardScreenState extends State<FlashCardScreen> {
       backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 20, top: 20, left: 20, right: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(existing == null ? "New Deck" : "Edit Deck", style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              _inputField("Deck Title", titleCtrl, context),
-              const SizedBox(height: 15),
-              _inputField("Category (e.g. Science)", catCtrl, context),
-              const SizedBox(height: 20),
-              Text("Color", style: TextStyle(color: textColor.withOpacity(0.7))),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [Colors.blueAccent, Colors.redAccent, Colors.greenAccent, Colors.orangeAccent, Colors.purpleAccent].map((c) => 
-                  GestureDetector(
-                    onTap: () => setModalState(() => selectedColor = c),
-                    child: Container(
-                      width: 40, height: 40,
-                      decoration: BoxDecoration(color: c, shape: BoxShape.circle, border: selectedColor == c ? Border.all(color: textColor, width: 3) : null),
-                    ),
-                  )
-                ).toList(),
-              ),
-              const SizedBox(height: 30),
-              Row(
-                children: [
-                  if (existing == null) ...[
+        builder: (context, setModalState) {
+          final theme = Theme.of(context);
+          final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+          final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+          final isDark = theme.brightness == Brightness.dark;
+          final inputBg = isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05);
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 40, top: 20, left: 25, right: 25),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2)))),
+                const SizedBox(height: 20),
+                Text(existing == null ? "NEW DECK" : "EDIT DECK", style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                const SizedBox(height: 25),
+                
+                CupertinoTextField(
+                  controller: titleCtrl,
+                  placeholder: "Deck Title",
+                  placeholderStyle: TextStyle(color: secondaryTextColor),
+                  style: TextStyle(color: textColor),
+                  decoration: BoxDecoration(color: inputBg, borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.all(16),
+                ),
+                const SizedBox(height: 15),
+                CupertinoTextField(
+                  controller: catCtrl,
+                  placeholder: "Category (e.g. Science)",
+                  placeholderStyle: TextStyle(color: secondaryTextColor),
+                  style: TextStyle(color: textColor),
+                  decoration: BoxDecoration(color: inputBg, borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.all(16),
+                ),
+                
+                const SizedBox(height: 25),
+                Text("COLOR LABEL", style: TextStyle(color: secondaryTextColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 15),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [accentColor, Colors.blueAccent, Colors.redAccent, Colors.greenAccent, Colors.orangeAccent, Colors.purpleAccent].map((c) => 
+                    GestureDetector(
+                      onTap: () => setModalState(() => selectedColor = c),
+                      child: Container(
+                        width: 45, height: 45,
+                        decoration: BoxDecoration(
+                          color: c.withOpacity(0.2), 
+                          shape: BoxShape.circle, 
+                          border: Border.all(color: selectedColor == c ? c : Colors.transparent, width: 2)
+                        ),
+                        child: Center(child: Container(width: 20, height: 20, decoration: BoxDecoration(color: c, shape: BoxShape.circle))),
+                      ),
+                    )
+                  ).toList(),
+                ),
+
+                const SizedBox(height: 30),
+                Row(
+                  children: [
+                    if (existing == null) ...[
+                      Expanded(
+                        child: CupertinoButton(
+                          padding: EdgeInsets.zero,
+                          color: inputBg,
+                          borderRadius: BorderRadius.circular(15),
+                          child: Icon(CupertinoIcons.sparkles, color: textColor),
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _showAiDialog(context);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                    ],
                     Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(CupertinoIcons.sparkles),
-                        label: const Text("Generate with AI"),
-                        style: OutlinedButton.styleFrom(foregroundColor: textColor, side: BorderSide(color: textColor.withOpacity(0.3))),
+                      flex: 3,
+                      child: CupertinoButton(
+                        color: selectedColor,
+                        borderRadius: BorderRadius.circular(15),
+                        child: Text(existing == null ? "Create" : "Save", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                         onPressed: () {
-                          Navigator.pop(ctx);
-                          _showAiDialog(context);
+                          if (titleCtrl.text.isNotEmpty) {
+                            if (existing == null) {
+                              Provider.of<FlashcardsProvider>(context, listen: false).createDeck(titleCtrl.text, catCtrl.text, selectedColor);
+                            } else {
+                              Provider.of<FlashcardsProvider>(context, listen: false).updateDeck(existing.id, titleCtrl.text, catCtrl.text, selectedColor);
+                            }
+                            Navigator.pop(ctx);
+                          }
                         },
                       ),
                     ),
-                    const SizedBox(width: 10),
                   ],
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: selectedColor, foregroundColor: Colors.white),
-                      onPressed: () {
-                        if (titleCtrl.text.isNotEmpty) {
-                          if (existing == null) {
-                            provider.createDeck(titleCtrl.text, catCtrl.text, selectedColor);
-                          } else {
-                            provider.updateDeck(existing.id, titleCtrl.text, catCtrl.text, selectedColor);
-                          }
-                          Navigator.pop(ctx);
-                        }
-                      },
-                      child: Text(existing == null ? "Create" : "Save"),
-                    ),
-                  ),
-                ],
-              )
-            ],
-          ),
-        ),
+                )
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  void _showAiDialog(BuildContext context) {
+  void _showAiDialog(BuildContext context) async {
     final ctrl = TextEditingController();
-    final textColor = Theme.of(context).textTheme.bodyLarge!.color!;
+    
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        title: Text("AI Generator", style: TextStyle(color: textColor)),
-        content: TextField(
-          controller: ctrl,
-          style: TextStyle(color: textColor),
-          decoration: InputDecoration(hintText: "Enter topic (e.g. Spanish Basics)", hintStyle: TextStyle(color: textColor.withOpacity(0.5))),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text("Cancel", style: TextStyle(color: textColor.withOpacity(0.7)))),
-          TextButton(
-            child: const Text("Generate", style: TextStyle(color: Colors.purpleAccent)),
-            onPressed: () {
-              Navigator.pop(ctx);
-              Provider.of<FlashcardsProvider>(context, listen: false).generateDeckWithAi(ctrl.text);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("AI is working magic... check back soon!")));
-            },
-          )
-        ],
-      ),
+      builder: (ctx) {
+        final theme = Theme.of(context);
+        final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+        final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+        final isDark = theme.brightness == Brightness.dark;
+        final inputBg = isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05);
+
+        return AlertDialog(
+          backgroundColor: theme.cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text("AI CREATOR ✨", style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2)),
+          content: CupertinoTextField(
+            controller: ctrl,
+            placeholder: "Enter topic (e.g. Spanish Basics)",
+            placeholderStyle: TextStyle(color: secondaryTextColor),
+            style: TextStyle(color: textColor),
+            decoration: BoxDecoration(color: inputBg, borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.all(16),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text("Cancel", style: TextStyle(color: secondaryTextColor))),
+            TextButton(
+              child: Text("Generate", style: TextStyle(color: Provider.of<UserProvider>(context).accentColor, fontWeight: FontWeight.bold)),
+              onPressed: () async {
+                if (ctrl.text.isEmpty) return;
+                Navigator.pop(ctx);
+                
+                // Show loading
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("AI is generating flashcards..."), duration: Duration(seconds: 2))
+                );
+
+                // Generate cards
+                final rawCards = await AiService().generateFlashcards(ctrl.text);
+                
+                if (!context.mounted) return;
+                if (rawCards.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Generation failed. Try again."))
+                  );
+                  return;
+                }
+
+                // Convert to Flashcard objects
+                final cards = rawCards.map((r) => Flashcard(
+                  question: r['q']!,
+                  answer: r['a']!,
+                )).toList();
+
+                // Navigate to review screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AiDeckReviewScreen(
+                      topic: ctrl.text,
+                      initialCards: cards,
+                    )
+                  ),
+                );
+              },
+            )
+          ],
+        );
+      },
     );
   }
 
   void _showDeckOptions(BuildContext context, FlashcardDeck deck) {
-    final textColor = Theme.of(context).textTheme.bodyLarge!.color!;
+    final theme = Theme.of(context);
+    final textColor = theme.textTheme.bodyLarge?.color;
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: Theme.of(context).cardColor,
-      builder: (ctx) => Wrap(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.edit, color: Colors.blueAccent),
-            title: Text("Edit Deck Info", style: TextStyle(color: textColor)),
-            onTap: () { Navigator.pop(ctx); _showCreateDeckDialog(context, deck); },
-          ),
-          ListTile(
-            leading: const Icon(Icons.delete, color: Colors.redAccent),
-            title: const Text("Delete Deck", style: TextStyle(color: Colors.redAccent)),
-            onTap: () {
-              Navigator.pop(ctx);
-              Provider.of<FlashcardsProvider>(context, listen: false).deleteDeck(deck.id);
-              setState(() => _activeDeck = null);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _inputField(String hint, TextEditingController ctrl, BuildContext context) {
-    final textColor = Theme.of(context).textTheme.bodyLarge!.color!;
-    return Container(
-      height: 50,
-      padding: const EdgeInsets.symmetric(horizontal: 15),
-      decoration: BoxDecoration(
-        color: textColor.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: textColor.withOpacity(0.1))
-      ),
-      child: TextField(
-        controller: ctrl,
-        style: TextStyle(color: textColor),
-        decoration: InputDecoration(
-          hintText: hint, 
-          hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
-          border: InputBorder.none
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: Icon(CupertinoIcons.pencil, color: Provider.of<UserProvider>(context).accentColor),
+              title: Text("Edit Deck Info", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+              onTap: () { Navigator.pop(ctx); _showCreateDeckDialog(context, deck); },
+            ),
+            ListTile(
+              leading: const Icon(CupertinoIcons.trash, color: Colors.redAccent),
+              title: const Text("Delete Deck", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+              onTap: () {
+                Navigator.pop(ctx);
+                Provider.of<FlashcardsProvider>(context, listen: false).deleteDeck(deck.id);
+                setState(() => _activeDeck = null);
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -233,8 +310,11 @@ class _DeckGridView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = Theme.of(context).textTheme.bodyLarge!.color!;
-    if (decks.isEmpty) return Center(child: Text("No decks yet. Tap + to create.", style: TextStyle(color: textColor.withOpacity(0.5))));
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final secondaryTextColor = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (decks.isEmpty) return Center(child: Text("No decks yet. Tap + to create.", style: TextStyle(color: secondaryTextColor)));
     
     return MasonryGridView.count(
       padding: const EdgeInsets.all(20),
@@ -249,25 +329,31 @@ class _DeckGridView extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(20),
+              color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+              borderRadius: BorderRadius.circular(25),
+              border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0,4))],
-              border: Border.all(color: deck.color.withOpacity(0.3), width: 1),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: deck.color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                  child: Text(deck.category.toUpperCase(), style: TextStyle(color: deck.color, fontSize: 10, fontWeight: FontWeight.bold)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(color: deck.color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                      child: Text(deck.category.toUpperCase(), style: TextStyle(color: deck.color, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ),
+                    Icon(CupertinoIcons.right_chevron, size: 12, color: secondaryTextColor),
+                  ],
                 ),
                 const SizedBox(height: 15),
                 Text(deck.title, style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 5),
-                Text("${deck.cards.length} Cards", style: TextStyle(color: textColor.withOpacity(0.6), fontSize: 12)),
+                Text("${deck.cards.length} Cards", style: TextStyle(color: secondaryTextColor, fontSize: 12)),
                 const SizedBox(height: 15),
-                LinearProgressIndicator(value: deck.progress, backgroundColor: textColor.withOpacity(0.05), color: deck.color, minHeight: 4, borderRadius: BorderRadius.circular(2)),
+                LinearProgressIndicator(value: deck.progress, backgroundColor: deck.color.withOpacity(0.1), color: deck.color, minHeight: 4, borderRadius: BorderRadius.circular(2)),
               ],
             ),
           ),
@@ -284,18 +370,22 @@ class _DeckDetailView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<FlashcardsProvider>(context, listen: false);
-    final textColor = Theme.of(context).textTheme.bodyLarge!.color!;
-    final cardBg = Theme.of(context).cardColor;
+    final theme = Theme.of(context);
+    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Column(
       children: [
+        const SizedBox(height: 60), // Space for custom back button
+        
         // DECK HEADER
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(25),
           margin: const EdgeInsets.symmetric(horizontal: 20),
           decoration: BoxDecoration(
-            color: deck.color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(colors: [deck.color.withOpacity(0.2), deck.color.withOpacity(0.05)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+            borderRadius: BorderRadius.circular(25),
             border: Border.all(color: deck.color.withOpacity(0.3)),
           ),
           child: Row(
@@ -304,20 +394,28 @@ class _DeckDetailView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Mastery: ${(deck.progress * 100).toInt()}%", style: TextStyle(color: deck.color, fontWeight: FontWeight.bold)),
+                    Text("MASTERY", style: TextStyle(color: deck.color, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                     const SizedBox(height: 5),
-                    ClipRRect(borderRadius: BorderRadius.circular(5), child: LinearProgressIndicator(value: deck.progress, color: deck.color, backgroundColor: Colors.black12)),
+                    Text("${(deck.progress * 100).toInt()}%", style: TextStyle(color: textColor, fontSize: 32, fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 10),
+                    ClipRRect(borderRadius: BorderRadius.circular(5), child: LinearProgressIndicator(value: deck.progress, color: deck.color, backgroundColor: Colors.black12, minHeight: 6)),
                   ],
                 ),
               ),
               const SizedBox(width: 20),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.play_arrow),
-                label: const Text("Study"),
-                style: ElevatedButton.styleFrom(backgroundColor: deck.color, foregroundColor: Colors.white),
+              CupertinoButton(
+                color: deck.color,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                borderRadius: BorderRadius.circular(15),
+                child: const Row(
+                  children: [
+                    Icon(CupertinoIcons.play_fill, color: Colors.white, size: 16),
+                    SizedBox(width: 5),
+                    Text("Study", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ],
+                ),
                 onPressed: () {
                   if (deck.cards.isNotEmpty) {
-                    // Start Study
                     context.findAncestorStateOfType<_FlashCardScreenState>()!.setState(() => 
                       context.findAncestorStateOfType<_FlashCardScreenState>()!._isStudying = true
                     );
@@ -330,16 +428,20 @@ class _DeckDetailView extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 25),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 25),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("Cards (${deck.cards.length})", style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18)),
-              IconButton(
-                icon: const Icon(Icons.add_circle, color: Colors.blueAccent),
-                onPressed: () => _showCardEditor(context, deck, null),
+              Text("CARDS (${deck.cards.length})", style: TextStyle(color: secondaryTextColor, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 1.5)),
+              GestureDetector(
+                onTap: () => _showCardEditor(context, deck, null),
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(color: deck.color.withOpacity(0.1), shape: BoxShape.circle),
+                  child: Icon(CupertinoIcons.add, color: deck.color, size: 20),
+                ),
               )
             ],
           ),
@@ -347,39 +449,45 @@ class _DeckDetailView extends StatelessWidget {
 
         // CARD LIST
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(20),
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(20, 15, 20, 100),
             itemCount: deck.cards.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (ctx, i) {
               final card = deck.cards[i];
               return Dismissible(
                 key: Key(card.id),
-                background: Container(color: Colors.red, alignment: Alignment.centerRight, padding: const EdgeInsets.only(right: 20), child: const Icon(Icons.delete, color: Colors.white)),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(15)),
+                  child: const Icon(CupertinoIcons.trash, color: Colors.white)
+                ),
                 onDismissed: (_) => provider.deleteCard(deck.id, card.id),
                 child: GestureDetector(
                   onTap: () => _showCardEditor(context, deck, card),
                   child: Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(15),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: cardBg, 
+                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
                       borderRadius: BorderRadius.circular(15),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0,2))]
+                      border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
                     ),
                     child: Row(
                       children: [
-                        Icon(card.masteryLevel > 0 ? Icons.check_circle : Icons.circle_outlined, color: deck.color, size: 20),
+                        Icon(card.masteryLevel > 0 ? CupertinoIcons.check_mark_circled_solid : CupertinoIcons.circle, color: deck.color, size: 20),
                         const SizedBox(width: 15),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(card.question, style: TextStyle(color: textColor, fontWeight: FontWeight.bold), maxLines: 1),
-                              Text(card.answer, style: TextStyle(color: textColor.withOpacity(0.6), fontSize: 12), maxLines: 1),
+                              Text(card.question, style: TextStyle(color: textColor, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              Text(card.answer, style: TextStyle(color: secondaryTextColor, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                             ],
                           ),
                         ),
-                        Icon(Icons.chevron_right, color: textColor.withOpacity(0.3), size: 16),
+                        Icon(CupertinoIcons.chevron_right, color: secondaryTextColor.withOpacity(0.3), size: 14),
                       ],
                     ),
                   ),
@@ -396,39 +504,70 @@ class _DeckDetailView extends StatelessWidget {
     final qCtrl = TextEditingController(text: card?.question);
     final aCtrl = TextEditingController(text: card?.answer);
     final provider = Provider.of<FlashcardsProvider>(context, listen: false);
-    final textColor = Theme.of(context).textTheme.bodyLarge!.color!;
-    final cardBg = Theme.of(context).cardColor;
-
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: cardBg,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 20, top: 20, left: 20, right: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(card == null ? "Add Card" : "Edit Card", style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 20),
-            TextField(controller: qCtrl, style: TextStyle(color: textColor), decoration: InputDecoration(hintText: "Question (Front)", hintStyle: TextStyle(color: textColor.withOpacity(0.5)))),
-            const SizedBox(height: 10),
-            TextField(controller: aCtrl, style: TextStyle(color: textColor), decoration: InputDecoration(hintText: "Answer (Back)", hintStyle: TextStyle(color: textColor.withOpacity(0.5)))),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
-              onPressed: () {
-                if (card == null) {
-                  provider.addCard(deck.id, qCtrl.text, aCtrl.text);
-                } else {
-                  provider.editCard(deck.id, card.id, qCtrl.text, aCtrl.text);
-                }
-                Navigator.pop(ctx);
-              },
-              child: const Text("Save Card"),
-            )
-          ],
-        ),
-      ),
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+      builder: (ctx) {
+        final theme = Theme.of(context);
+        final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+        final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+        final isDark = theme.brightness == Brightness.dark;
+        final inputBg = isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05);
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 40, top: 20, left: 25, right: 25),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 20),
+              Text(card == null ? "ADD CARD" : "EDIT CARD", style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2)),
+              const SizedBox(height: 25),
+              
+              CupertinoTextField(
+                controller: qCtrl,
+                placeholder: "Question (Front)",
+                placeholderStyle: TextStyle(color: secondaryTextColor),
+                style: TextStyle(color: textColor),
+                decoration: BoxDecoration(color: inputBg, borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.all(16),
+              ),
+              const SizedBox(height: 15),
+              CupertinoTextField(
+                controller: aCtrl,
+                placeholder: "Answer (Back)",
+                placeholderStyle: TextStyle(color: secondaryTextColor),
+                style: TextStyle(color: textColor),
+                decoration: BoxDecoration(color: inputBg, borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.all(16),
+              ),
+              
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                child: CupertinoButton(
+                  color: Provider.of<UserProvider>(context).accentColor,
+                  borderRadius: BorderRadius.circular(15),
+                  child: const Text("Save Card", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  onPressed: () {
+                    if (qCtrl.text.isNotEmpty && aCtrl.text.isNotEmpty) {
+                      if (card == null) {
+                        provider.addCard(deck.id, qCtrl.text, aCtrl.text);
+                      } else {
+                        provider.editCard(deck.id, card.id, qCtrl.text, aCtrl.text);
+                      }
+                      Navigator.pop(ctx);
+                    }
+                  },
+                ),
+              )
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -467,20 +606,27 @@ class _StudyViewState extends State<_StudyView> {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = Theme.of(context).scaffoldBackgroundColor;
-    final textColor = Theme.of(context).textTheme.bodyLarge!.color!;
-    final cardBg = Theme.of(context).cardColor;
+    final theme = Theme.of(context);
+    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+    final cardBg = theme.cardColor;
+    final isDark = theme.brightness == Brightness.dark;
 
     if (_index >= _queue.length) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.check_circle, size: 80, color: Colors.green),
+            const Icon(CupertinoIcons.check_mark_circled_solid, size: 80, color: Colors.green),
             const SizedBox(height: 20),
-            Text("Session Complete!", style: TextStyle(color: textColor, fontSize: 24, fontWeight: FontWeight.bold)),
+            Text("SESSION COMPLETE", style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2)),
             const SizedBox(height: 30),
-            ElevatedButton(onPressed: widget.onExit, child: const Text("Finish"))
+            CupertinoButton(
+              color: textColor,
+              borderRadius: BorderRadius.circular(15),
+              onPressed: widget.onExit, 
+              child: Text("Finish", style: TextStyle(color: theme.scaffoldBackgroundColor, fontWeight: FontWeight.bold))
+            )
           ],
         ),
       );
@@ -488,61 +634,87 @@ class _StudyViewState extends State<_StudyView> {
 
     final card = _queue[_index];
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        leading: IconButton(icon: Icon(Icons.close, color: textColor), onPressed: widget.onExit),
-        title: Text("Card ${_index + 1}/${_queue.length}", style: TextStyle(color: textColor)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          const SizedBox(height: 20),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _showAnswer = !_showAnswer),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                width: double.infinity,
-                padding: const EdgeInsets.all(30),
-                decoration: BoxDecoration(
-                  color: _showAnswer ? cardBg.withOpacity(0.9) : cardBg,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 30, offset: const Offset(0, 10))],
-                  border: Border.all(color: widget.deck.color.withOpacity(0.5), width: 2),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(_showAnswer ? "ANSWER" : "QUESTION", style: TextStyle(color: widget.deck.color, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                    const SizedBox(height: 30),
-                    Text(
-                      _showAnswer ? card.answer : card.question, 
-                      textAlign: TextAlign.center, 
-                      style: TextStyle(color: textColor, fontSize: 28, fontWeight: FontWeight.bold)
-                    ),
-                    if (!_showAnswer)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 50),
-                        child: Text("Tap to flip", style: TextStyle(color: textColor.withOpacity(0.3))),
-                      )
-                  ],
-                ),
+    return Column(
+      children: [
+        // Custom Study Header
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(icon: Icon(CupertinoIcons.xmark, color: secondaryTextColor), onPressed: widget.onExit),
+              Text("${_index + 1} / ${_queue.length}", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 40), // Spacer
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 20),
+        
+        // Card Area
+        Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _showAnswer = !_showAnswer),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              width: double.infinity,
+              padding: const EdgeInsets.all(30),
+              decoration: BoxDecoration(
+                color: _showAnswer ? cardBg.withOpacity(0.9) : cardBg,
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 30, offset: const Offset(0, 10))],
+                border: Border.all(color: widget.deck.color.withOpacity(0.5), width: 2),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(_showAnswer ? "ANSWER" : "QUESTION", style: TextStyle(color: widget.deck.color, fontWeight: FontWeight.bold, letterSpacing: 2, fontSize: 12)),
+                  const SizedBox(height: 30),
+                  Text(
+                    _showAnswer ? card.answer : card.question, 
+                    textAlign: TextAlign.center, 
+                    style: TextStyle(color: textColor, fontSize: 24, fontWeight: FontWeight.bold)
+                  ),
+                  if (!_showAnswer)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 50),
+                      child: Text("Tap to flip", style: TextStyle(color: secondaryTextColor.withOpacity(0.5))),
+                    )
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 40),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        ),
+        
+        const SizedBox(height: 40),
+        
+        // Controls
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              FloatingActionButton(heroTag: "miss", backgroundColor: Colors.redAccent, onPressed: () => _next(false), child: const Icon(Icons.close, color: Colors.white)),
-              FloatingActionButton(heroTag: "hit", backgroundColor: Colors.greenAccent, onPressed: () => _next(true), child: const Icon(Icons.check, color: Colors.white)),
+              GestureDetector(
+                onTap: () => _next(false),
+                child: Container(
+                  width: 60, height: 60,
+                  decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), shape: BoxShape.circle),
+                  child: const Icon(CupertinoIcons.xmark, color: Colors.redAccent, size: 28),
+                ),
+              ),
+              GestureDetector(
+                onTap: () => _next(true),
+                child: Container(
+                  width: 80, height: 80,
+                  decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.2), shape: BoxShape.circle, border: Border.all(color: Colors.greenAccent, width: 2)),
+                  child: const Icon(CupertinoIcons.check_mark, color: Colors.green, size: 32),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 50),
-        ],
-      ),
+        ),
+        const SizedBox(height: 50),
+      ],
     );
   }
 }

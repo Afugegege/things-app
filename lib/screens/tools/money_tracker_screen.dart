@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/money_provider.dart';
-import '../../widgets/glass_container.dart';
 
 class MoneyTrackerScreen extends StatefulWidget {
   const MoneyTrackerScreen({super.key});
@@ -16,50 +15,87 @@ class _MoneyTrackerScreenState extends State<MoneyTrackerScreen> {
     TextEditingController titleCtrl = TextEditingController();
     TextEditingController amountCtrl = TextEditingController();
     
+    // Default categories matching your Wallet Screen
+    String selectedCategory = isExpense ? 'Food' : 'Income';
+    final List<String> expenseCategories = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Health', 'Other'];
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1E),
-        title: Text(isExpense ? "Add Expense" : "Add Income", style: const TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleCtrl, 
-              style: const TextStyle(color: Colors.white), 
-              decoration: const InputDecoration(hintText: "Title", hintStyle: TextStyle(color: Colors.white38))
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: const Color(0xFF1C1C1E),
+          title: Text(isExpense ? "Add Expense" : "Add Income", style: const TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: titleCtrl, 
+                style: const TextStyle(color: Colors.white), 
+                decoration: const InputDecoration(hintText: "Title", hintStyle: TextStyle(color: Colors.white38))
+              ),
+              TextField(
+                controller: amountCtrl, 
+                keyboardType: const TextInputType.numberWithOptions(decimal: true), 
+                style: const TextStyle(color: Colors.white), 
+                decoration: const InputDecoration(hintText: "Amount", hintStyle: TextStyle(color: Colors.white38))
+              ),
+              const SizedBox(height: 20),
+              
+              // Only show category dropdown for expenses
+              if (isExpense) ...[
+                const Text("Category", style: TextStyle(color: Colors.white54, fontSize: 12)),
+                const SizedBox(height: 5),
+                DropdownButton<String>(
+                  value: selectedCategory,
+                  dropdownColor: const Color(0xFF2C2C2E),
+                  isExpanded: true,
+                  style: const TextStyle(color: Colors.white),
+                  underline: Container(height: 1, color: Colors.white24),
+                  items: expenseCategories.map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {
+                    setState(() => selectedCategory = newValue!);
+                  },
+                ),
+              ]
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Cancel", style: TextStyle(color: Colors.white54)),
             ),
-            TextField(
-              controller: amountCtrl, 
-              keyboardType: TextInputType.number, 
-              style: const TextStyle(color: Colors.white), 
-              decoration: const InputDecoration(hintText: "Amount", hintStyle: TextStyle(color: Colors.white38))
-            ),
+            TextButton(
+              onPressed: () {
+                if (titleCtrl.text.isNotEmpty && amountCtrl.text.isNotEmpty) {
+                  final provider = Provider.of<MoneyProvider>(context, listen: false);
+                  double val = double.tryParse(amountCtrl.text) ?? 0.0;
+                  
+                  // [FIX] Now passing the 3rd argument (category)
+                  provider.addTransaction(
+                    titleCtrl.text, 
+                    isExpense ? -val : val,
+                    selectedCategory
+                  );
+                  
+                  Navigator.pop(ctx);
+                }
+              }, 
+              child: const Text("Add", style: TextStyle(color: Colors.amber))
+            )
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              if (titleCtrl.text.isNotEmpty && amountCtrl.text.isNotEmpty) {
-                final provider = Provider.of<MoneyProvider>(context, listen: false);
-                double val = double.parse(amountCtrl.text);
-                
-                // Add via Provider
-                provider.addTransaction(titleCtrl.text, isExpense ? -val : val);
-                
-                Navigator.pop(ctx);
-              }
-            }, 
-            child: const Text("Add", style: TextStyle(color: Colors.amber))
-          )
-        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // 1. LISTEN TO PROVIDER
     final moneyProvider = Provider.of<MoneyProvider>(context);
     final balance = moneyProvider.balance;
     final transactions = moneyProvider.transactions;
@@ -114,13 +150,14 @@ class _MoneyTrackerScreenState extends State<MoneyTrackerScreen> {
           ),
           const SizedBox(height: 20),
 
-          // HISTORY LIST FROM PROVIDER
+          // HISTORY LIST
           Expanded(
             child: ListView.builder(
               itemCount: transactions.length,
               itemBuilder: (context, index) {
                 final tx = transactions[index];
                 final isNeg = (tx['amount'] as double) < 0;
+                final cat = tx['category'] ?? 'General';
                 
                 return Dismissible(
                   key: UniqueKey(),
@@ -135,7 +172,7 @@ class _MoneyTrackerScreenState extends State<MoneyTrackerScreen> {
                       ),
                     ),
                     title: Text(tx['title'], style: const TextStyle(color: Colors.white)),
-                    subtitle: Text(tx['date'].toString().split(' ')[0], style: const TextStyle(color: Colors.white38)),
+                    subtitle: Text("$cat • ${tx['date'].toString().split(' ')[0]}", style: const TextStyle(color: Colors.white38)),
                     trailing: Text(
                       "${isNeg ? '' : '+'}${tx['amount']}",
                       style: TextStyle(color: isNeg ? Colors.white : Colors.greenAccent, fontWeight: FontWeight.bold),

@@ -4,32 +4,25 @@ import '../models/event_model.dart';
 
 class EventsProvider extends ChangeNotifier {
   final List<Event> _events = [
+    // Sample Data
     Event(
       id: const Uuid().v4(),
       title: "Mom's Birthday",
-      description: "Buy flowers and a gift card",
       date: DateTime.now().add(const Duration(days: 4)),
-      endTime: DateTime.now().add(const Duration(days: 4, hours: 2)),
+      endTime: DateTime.now().add(const Duration(days: 4)),
+      isAllDay: true,
       type: EventType.birthday,
       color: Colors.purpleAccent,
     ),
     Event(
       id: const Uuid().v4(),
-      title: "Project Deadline",
-      description: "Submit final report to management",
-      date: DateTime.now().add(const Duration(days: 12)),
-      endTime: DateTime.now().add(const Duration(days: 12, hours: 5)),
-      type: EventType.work,
-      color: Colors.redAccent,
-    ),
-    Event(
-      id: const Uuid().v4(),
-      title: "Lunch with Team",
-      location: "Burger King",
-      date: DateTime.now().add(const Duration(hours: 2)),
-      endTime: DateTime.now().add(const Duration(hours: 3)),
+      title: "Japan Trip",
+      date: DateTime.now().add(const Duration(days: 120)), // Far future event
+      endTime: DateTime.now().add(const Duration(days: 125)),
+      isAllDay: true,
+      isDayCounter: true, // This should now show up
       type: EventType.personal,
-      color: Colors.orangeAccent,
+      color: Colors.pinkAccent,
     ),
   ];
 
@@ -44,25 +37,36 @@ class EventsProvider extends ChangeNotifier {
     }).toList();
   }
 
-  // Get next single event for dashboard ticker
-  Event? get nextEvent {
+  // [FIX] Dashboard Logic
+  // 1. Regular Events: Show only if within 60 days (to keep list clean)
+  // 2. Day Counters: Show ALL future counters (no date limit)
+  List<Event> get dashboardEvents {
     final now = DateTime.now();
-    final upcoming = _events.where((e) => e.date.isAfter(now)).toList();
-    upcoming.sort((a, b) => a.date.compareTo(b.date));
-    return upcoming.isNotEmpty ? upcoming.first : null;
-  }
+    final list = _events.where((e) {
+      final isFuture = e.endTime.isAfter(now);
+      if (!isFuture) return false;
 
-  // Get upcoming events list
-  List<Event> get upcomingEvents {
-    final now = DateTime.now();
-    return _events.where((e) => 
-      e.date.isAfter(now) && e.date.isBefore(now.add(const Duration(days: 30)))
-    ).toList();
+      if (e.isDayCounter) return true; // Always show Day Counters
+      
+      // Only show regular events if they are soon (e.g., next 60 days)
+      return e.date.isBefore(now.add(const Duration(days: 60)));
+    }).toList();
+    
+    list.sort((a, b) => a.date.compareTo(b.date));
+    return list;
   }
 
   void addEvent(Event e) {
     _events.add(e);
     notifyListeners();
+  }
+
+  void editEvent(Event updatedEvent) {
+    final index = _events.indexWhere((e) => e.id == updatedEvent.id);
+    if (index != -1) {
+      _events[index] = updatedEvent;
+      notifyListeners();
+    }
   }
 
   void removeEvent(String id) {

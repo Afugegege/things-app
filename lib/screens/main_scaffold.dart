@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart'; 
 import 'package:provider/provider.dart';
 
 // Screens
@@ -13,6 +14,9 @@ import 'dashboard/things_grid_screen.dart';
 import 'apps/wallet_screen.dart';
 import 'apps/roam_screen.dart';
 import 'apps/pulse_screen.dart';
+import 'apps/brain_screen.dart'; 
+import 'tools/flashcard_screen.dart';
+import 'tools/bucket_list_screen.dart';
 
 import '../widgets/dashboard_drawer.dart'; 
 import '../services/notification_service.dart';
@@ -27,7 +31,6 @@ class MainScaffold extends StatefulWidget {
 
 class _MainScaffoldState extends State<MainScaffold> {
   final GlobalKey<ScaffoldState> _mainScaffoldKey = GlobalKey<ScaffoldState>();
-  String _currentAppId = 'notes'; 
   bool _isDockEditing = false;
 
   @override
@@ -36,21 +39,30 @@ class _MainScaffoldState extends State<MainScaffold> {
     NotificationService.requestPermissions();
   }
 
+  // [FIX] Correct mapping of IDs to Screens
   Widget _getScreenForId(String id) {
     switch (id) {
-      case 'notes': return ThingsGridScreen(parentScaffoldKey: _mainScaffoldKey);
+      case 'dashboard': 
+        return ThingsGridScreen(parentScaffoldKey: _mainScaffoldKey);
+      case 'notes': 
+        return const BrainScreen(); // [FIX] Mapped 'notes' to BrainScreen
+      case 'brain': return const BrainScreen(); 
       case 'tasks': return const TasksListScreen();
       case 'ai': return const ChatScreen();
       case 'calendar': return const CalendarScreen();
-      case 'profile': return const UserProfileScreen();
       case 'wallet': return const WalletScreen();
       case 'roam': return const RoamScreen();
       case 'pulse': return const PulseScreen();
-      default: return const Center(child: Text("App not found"));
+      case 'flashcards': return const FlashCardScreen();
+      case 'bucket': return const BucketListScreen();
+      case 'profile': return const UserProfileScreen();
+      // Settings and Profile are handled by Navigator.push, not here.
+      default: return ThingsGridScreen(parentScaffoldKey: _mainScaffoldKey);
     }
   }
 
   void _toggleEditMode() {
+    HapticFeedback.mediumImpact(); 
     setState(() => _isDockEditing = !_isDockEditing);
   }
 
@@ -58,65 +70,98 @@ class _MainScaffoldState extends State<MainScaffold> {
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
     final dockItems = userProvider.dockItems;
+    final theme = Theme.of(context);
+    
+    final currentAppId = userProvider.currentView;
 
     return Scaffold(
       key: _mainScaffoldKey, 
-      backgroundColor: Colors.black,
+      backgroundColor: theme.scaffoldBackgroundColor,
       drawer: const DashboardDrawer(),
+      
       body: Stack(
         children: [
-          // 1. ACTIVE SCREEN
+          // 1. ACTIVE SCREEN (Switches based on State)
           Positioned.fill(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               child: Container(
-                key: ValueKey(_currentAppId),
-                child: _getScreenForId(_currentAppId),
+                key: ValueKey(currentAppId),
+                child: _getScreenForId(currentAppId),
               ),
             ),
           ),
 
-          // 2. EDIT MODE OVERLAY
+          // 2. BOTTOM GRADIENT FADE
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            height: 150,
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      theme.scaffoldBackgroundColor.withOpacity(0.9), 
+                      theme.scaffoldBackgroundColor.withOpacity(0.0), 
+                    ],
+                    stops: const [0.0, 1.0],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // 3. EDIT MODE OVERLAY
           if (_isDockEditing)
             Positioned.fill(
               child: GestureDetector(
                 onTap: _toggleEditMode,
-                child: Container(color: Colors.black.withOpacity(0.7)),
+                child: Container(
+                  color: Colors.black.withOpacity(0.7),
+                  child: const Center(
+                    child: Text("Tap to Exit Edit Mode", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)),
+                  ),
+                ),
               ),
             ),
           
-          // 3. EDIT MODE APP DRAWER
+          // 4. APP DRAWER (Tray)
           if (_isDockEditing)
              Positioned(
-               bottom: 120, left: 20, right: 20,
+               bottom: 130, left: 20, right: 20,
                child: _buildAppDrawer(userProvider),
              ),
 
-          // 4. FLOATING DOCK
+          // 5. FLOATING DOCK
           Positioned(
             left: 20, right: 20, bottom: 30,
             child: GestureDetector(
               onLongPress: _toggleEditMode,
-              child: Container(
-                height: 70,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                height: 75,
                 decoration: BoxDecoration(
-                  color: _isDockEditing ? Colors.white.withOpacity(0.2) : Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(35),
+                  color: _isDockEditing 
+                      ? Colors.white.withOpacity(0.1) 
+                      : const Color(0xFF1C1C1E).withOpacity(0.65), 
+                  borderRadius: BorderRadius.circular(40),
                   border: Border.all(
-                    color: _isDockEditing ? Colors.amber.withOpacity(0.5) : Colors.white.withOpacity(0.1), 
+                    color: _isDockEditing ? Colors.white.withOpacity(0.2) : Colors.white.withOpacity(0.1), 
                     width: 1.5
                   ),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 20, spreadRadius: 5),
+                    BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 30, offset: const Offset(0, 10)),
                   ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(35),
+                  borderRadius: BorderRadius.circular(40),
                   child: BackdropFilter(
-                    filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    filter: ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                     child: _isDockEditing 
                         ? _buildEditableDockList(userProvider)
-                        : _buildPlayableDockList(dockItems, userProvider),
+                        : _buildPlayableDockList(dockItems, userProvider, currentAppId),
                   ),
                 ),
               ),
@@ -127,26 +172,42 @@ class _MainScaffoldState extends State<MainScaffold> {
     );
   }
 
-  // A. Normal Mode: Just Icons
-  Widget _buildPlayableDockList(List<String> dockItems, UserProvider provider) {
+  // --- DOCK BUILDERS ---
+
+  Widget _buildPlayableDockList(List<String> dockItems, UserProvider provider, String currentId) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: dockItems.map((id) {
         final meta = provider.availableApps[id];
-        final bool isSelected = _currentAppId == id;
-        // [FIX] Consuming IconData directly
+        if (meta == null) return const SizedBox();
+
+        final bool isSelected = currentId == id;
         final IconData icon = meta['icon'] as IconData;
 
         return GestureDetector(
           onTap: () {
-            setState(() => _currentAppId = id);
+            HapticFeedback.lightImpact(); 
+            provider.changeView(id);
           },
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
             child: AnimatedScale(
-              scale: isSelected ? 1.2 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              child: Icon(icon, color: isSelected ? Colors.white : Colors.white38, size: 26),
+              scale: isSelected ? 1.3 : 1.0,
+              curve: Curves.elasticOut,
+              duration: const Duration(milliseconds: 300),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: isSelected ? Colors.white : Colors.white.withOpacity(0.4), size: 28),
+                    if (isSelected)
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        width: 4, height: 4, 
+                        decoration: BoxDecoration(color: provider.accentColor, shape: BoxShape.circle),
+                      )
+                ],
+              ),
             ),
           ),
         );
@@ -154,34 +215,58 @@ class _MainScaffoldState extends State<MainScaffold> {
     );
   }
 
-  // B. Edit Mode: Reorderable List
   Widget _buildEditableDockList(UserProvider provider) {
     return ReorderableListView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      onReorder: provider.reorderDock,
+      onReorder: (oldIndex, newIndex) {
+        HapticFeedback.selectionClick();
+        provider.reorderDock(oldIndex, newIndex);
+      },
+      proxyDecorator: (child, index, animation) {
+        return ScaleTransition(scale: animation, child: child);
+      },
       children: provider.dockItems.map((id) {
         final meta = provider.availableApps[id];
-        // [FIX] Consuming IconData directly
+        if (meta == null) return const SizedBox(key: ValueKey('null'));
         final IconData icon = meta['icon'] as IconData;
         
         return Container(
           key: ValueKey(id),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 5), 
           alignment: Alignment.center,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
-                child: Icon(icon, color: Colors.white, size: 20),
+                width: 50, height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                ),
+                child: Icon(icon, color: Colors.white, size: 24),
               ),
-              const SizedBox(height: 2),
-              GestureDetector(
-                onTap: () => provider.removeFromDock(id),
-                child: const Icon(Icons.remove_circle, color: Colors.white, size: 14),
-              )
+              Positioned(
+                top: -5,
+                right: -5,
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.heavyImpact();
+                    provider.removeFromDock(id);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade800, 
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                    child: const Icon(CupertinoIcons.minus, color: Colors.white, size: 12),
+                  ),
+                ),
+              ),
             ],
           ),
         );
@@ -189,40 +274,50 @@ class _MainScaffoldState extends State<MainScaffold> {
     );
   }
 
-  // C. App Drawer
   Widget _buildAppDrawer(UserProvider provider) {
     final available = provider.availableApps.keys.where((k) => !provider.dockItems.contains(k)).toList();
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white24),
+        color: const Color(0xFF1C1C1E).withOpacity(0.95),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: Colors.white12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("DRAG TO DOCK", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
+          const Text("DRAG TO DOCK", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
           const SizedBox(height: 15),
           if (available.isEmpty)
-             const Text("All apps are in the dock!", style: TextStyle(color: Colors.white38))
+             const Padding(
+               padding: EdgeInsets.all(8.0),
+               child: Text("All apps are in the dock!", style: TextStyle(color: Colors.white38)),
+             )
           else
             Wrap(
               spacing: 20,
               runSpacing: 20,
               children: available.map((id) {
                 final meta = provider.availableApps[id];
-                // [FIX] Consuming IconData directly
+                if (meta == null) return const SizedBox();
                 final IconData icon = meta['icon'] as IconData;
                 
                 return GestureDetector(
-                  onTap: () => provider.addToDock(id),
+                  onTap: () {
+                    HapticFeedback.mediumImpact(); 
+                    provider.addToDock(id);
+                  },
                   child: Column(
                     children: [
                       Container(
                         width: 50, height: 50,
-                        decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(15)),
+                        decoration: BoxDecoration(
+                          color: Colors.white10, 
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: Colors.white12)
+                        ),
                         child: Icon(icon, color: Colors.white),
                       ),
                       const SizedBox(height: 5),

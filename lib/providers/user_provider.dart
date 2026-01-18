@@ -10,18 +10,28 @@ class UserProvider extends ChangeNotifier {
     email: 'traveler@lifeos.app',
     aiMemory: ["I love pizza", "My goal is to be organized"], 
     preferences: {
-      'isDarkMode': true, // Default to Dark Mode
+      'isDarkMode': true,
+      'accentColor': 0xFFFFFFFF, 
       'notifications': true,
-      'sounds': true,
-      'bio_auth': false,
     },
     isPro: true,
+    dockItems: ['dashboard', 'notes', 'tasks', 'ai', 'profile'],
   );
 
-  // ... [Keep existing Dock/App logic] ...
-  List<String> _dockItems = ['notes', 'tasks', 'ai', 'calendar', 'profile'];
-  
+  // --- NAVIGATION STATE (CRITICAL FIX) ---
+  // This allows the Drawer and Dock to switch screens without pushing new routes
+  String _currentView = 'dashboard'; 
+  String get currentView => _currentView;
+
+  void changeView(String viewId) {
+    _currentView = viewId;
+    notifyListeners();
+  }
+
+  // --- DOCK DATA ---
+  // List<String> _dockItems = ['notes', 'tasks', 'ai', 'calendar', 'profile']; // REMOVED: Managed by User model now
   final Map<String, dynamic> _availableApps = {
+    'dashboard': {'label': 'Home', 'icon': CupertinoIcons.square_grid_2x2_fill}, 
     'notes': {'label': 'Brain', 'icon': CupertinoIcons.doc_text_fill},
     'tasks': {'label': 'Focus', 'icon': CupertinoIcons.checkmark_alt_circle_fill},
     'ai': {'label': 'AI', 'icon': CupertinoIcons.sparkles},
@@ -30,102 +40,122 @@ class UserProvider extends ChangeNotifier {
     'wallet': {'label': 'Wallet', 'icon': CupertinoIcons.money_dollar},
     'roam': {'label': 'Roam', 'icon': CupertinoIcons.map},
     'pulse': {'label': 'Pulse', 'icon': CupertinoIcons.heart},
+    'flashcards': {'label': 'Flashcards', 'icon': CupertinoIcons.bolt_horizontal_circle_fill},
+    'bucket': {'label': 'Bucket List', 'icon': CupertinoIcons.star_circle_fill},
   };
-
-  final Map<String, bool> _appVisibility = {
-    'Wallet': true, 'Roam': false, 'Focus': true, 'Brain': true, 'Pulse': false,
-  };
+  
   final Map<String, bool> _folderVisibility = {};
 
   UserProvider() {
     _loadUser();
   }
 
+  // --- GETTERS ---
   User get user => _user;
-  List<String> get dockItems => _dockItems;
+  List<String> get dockItems => _user.dockItems;
   Map<String, dynamic> get availableApps => _availableApps;
-  Map<String, bool> get appVisibility => _appVisibility;
+  
+  Map<String, bool> get appVisibility {
+    final Map<String, dynamic> stored = _user.preferences['appVisibility'] ?? {};
+    // Merge with defaults to ensure new keys exist
+    return {
+      'Wallet': stored['Wallet'] ?? true,
+      'Roam': stored['Roam'] ?? false, 
+      'Focus': stored['Focus'] ?? true,
+      'Brain': stored['Brain'] ?? true,
+      'Flashcards': stored['Flashcards'] ?? true, // Default to true
+      'Bucket': stored['Bucket'] ?? true,         // Default to true
+      'Events': stored['Events'] ?? true,
+    };
+  }
 
-  // [NEW] Theme Getter
+  // Theme & Streak Getters (RESTORED)
   bool get isDarkMode => _user.preferences['isDarkMode'] ?? true;
-  // [DEPRECATED] kept for compatibility if needed, but redirects to bool
-  String get currentTheme => isDarkMode ? 'Dark' : 'Light';
+  Color get accentColor {
+    int? colorVal = _user.preferences['accentColor'];
+    return colorVal != null ? Color(colorVal) : Colors.blueAccent;
+  }
+  int get currentStreak => 5; 
 
-  // [NEW] Theme Toggle Action
+  // --- ACTIONS ---
+
   void toggleTheme(bool isDark) {
     final newPrefs = Map<String, dynamic>.from(_user.preferences);
     newPrefs['isDarkMode'] = isDark;
-    updatePreferences(newPrefs);
-  }
-
-  // ... [Keep existing Actions: reorderDock, addToDock, updateName, etc.] ...
-  void reorderDock(int oldIndex, int newIndex) {
-    if (newIndex > oldIndex) newIndex -= 1;
-    final item = _dockItems.removeAt(oldIndex);
-    _dockItems.insert(newIndex, item);
-    notifyListeners();
-  }
-
-  void addToDock(String appId) {
-    if (!_dockItems.contains(appId)) {
-      if (_dockItems.length >= 5) _dockItems.removeLast();
-      _dockItems.add(appId);
-      notifyListeners();
-    }
-  }
-
-  void removeFromDock(String appId) {
-    if (_dockItems.length > 2) {
-      _dockItems.remove(appId);
-      notifyListeners();
-    }
-  }
-
-  void updateName(String newName) {
-    _user = _user.copyWith(name: newName);
+    _user = _user.copyWith(preferences: newPrefs);
     _save();
   }
 
-  void updatePreferences(Map<String, dynamic> newPrefs) {
+  void updateAccentColor(Color color) {
+    final newPrefs = Map<String, dynamic>.from(_user.preferences);
+    newPrefs['accentColor'] = color.value;
     _user = _user.copyWith(preferences: newPrefs);
     _save();
   }
 
   void addMemory(String fact) {
-    final updatedMemories = List<String>.from(_user.aiMemory)..add(fact);
-    _user = _user.copyWith(aiMemory: updatedMemories);
+    final updated = List<String>.from(_user.aiMemory)..add(fact);
+    _user = _user.copyWith(aiMemory: updated);
     _save();
+    notifyListeners();
   }
 
   void removeMemory(String fact) {
-    final updatedMemories = List<String>.from(_user.aiMemory)..remove(fact);
-    _user = _user.copyWith(aiMemory: updatedMemories);
+    final updated = List<String>.from(_user.aiMemory)..remove(fact);
+    _user = _user.copyWith(aiMemory: updated);
     _save();
+    notifyListeners();
   }
 
-  void toggleAppVisibility(String appName) {
-    if (_appVisibility.containsKey(appName)) {
-      _appVisibility[appName] = !(_appVisibility[appName] ?? false);
+  void reorderDock(int old, int newIdx) {
+    if (newIdx > old) newIdx -= 1;
+    final items = List<String>.from(_user.dockItems);
+    final item = items.removeAt(old);
+    items.insert(newIdx, item);
+    _user = _user.copyWith(dockItems: items);
+    _save();
+    notifyListeners();
+  }
+  
+  void addToDock(String id) {
+    final items = List<String>.from(_user.dockItems);
+    if (!items.contains(id)) {
+      if (items.length >= 5) items.removeLast();
+      items.add(id);
+      _user = _user.copyWith(dockItems: items);
+      _save();
+      notifyListeners();
+    }
+  }
+  
+  void removeFromDock(String id) {
+    final items = List<String>.from(_user.dockItems);
+    if (items.length > 2) {
+      items.remove(id);
+      _user = _user.copyWith(dockItems: items);
+      _save();
       notifyListeners();
     }
   }
 
-  bool isFolderVisible(String folderName) {
-    if (!_folderVisibility.containsKey(folderName)) {
-      _folderVisibility[folderName] = true;
-    }
-    return _folderVisibility[folderName]!;
-  }
-
-  void toggleFolderVisibility(String folderName) {
-    _folderVisibility[folderName] = !isFolderVisible(folderName);
+  void toggleAppVisibility(String key) {
+    final current = Map<String, bool>.from(appVisibility);
+    current[key] = !(current[key] ?? true);
+    
+    final newPrefs = Map<String, dynamic>.from(_user.preferences);
+    newPrefs['appVisibility'] = current;
+    
+    _user = _user.copyWith(preferences: newPrefs);
+    _save();
     notifyListeners();
   }
 
+  bool isFolderVisible(String folder) => _folderVisibility[folder] ?? true;
+  
   void _loadUser() {
-    final savedUser = StorageService.loadUser();
-    if (savedUser != null) {
-      _user = savedUser;
+    final saved = StorageService.loadUser();
+    if (saved != null) {
+      _user = saved;
       notifyListeners();
     }
   }
@@ -134,6 +164,4 @@ class UserProvider extends ChangeNotifier {
     StorageService.saveUser(_user);
     notifyListeners();
   }
-
-  int get currentStreak => 0; 
 }

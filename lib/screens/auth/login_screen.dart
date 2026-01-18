@@ -1,8 +1,7 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:provider/provider.dart';
-import '../../services/storage_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/glass_container.dart';
 import '../main_scaffold.dart';
 
@@ -13,155 +12,176 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
   bool _isLoading = false;
+  bool _isSignUp = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(duration: const Duration(seconds: 2), vsync: this);
-    _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleLogin(String method) async {
+  Future<void> _handleEmailAuth() async {
     setState(() => _isLoading = true);
-    
-    // Simulate Network Delay
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final email = _emailCtrl.text.trim();
+      final password = _passCtrl.text.trim();
 
-    // Mock Success
-    await StorageService.saveAuthToken("mock_token_123");
-    
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainScaffold()),
-      );
+      if (email.isEmpty || password.isEmpty) return;
+
+      if (_isSignUp) {
+        await AuthService.signUpWithEmail(email, password);
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account created! Please sign in.')));
+           setState(() => _isSignUp = false);
+        }
+      } else {
+        await AuthService.signInWithEmail(email, password);
+        // Navigation is handled by auth state listener or directly
+        if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainScaffold()));
+      }
+    } on AuthException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.red));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleGoogleAuth() async {
+    setState(() => _isLoading = true);
+    try {
+      await AuthService.signInWithGoogle();
+      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainScaffold()));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google Sign In Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Basic dark theme for login
+    final isDark = true; 
+    final textColor = Colors.white;
+    const secondaryTextColor = Colors.white70;
+
     return Scaffold(
+      backgroundColor: const Color(0xFF000000),
       body: Stack(
         children: [
-          // 1. BACKGROUND GRADIENT
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF000000), Color(0xFF1A1A1A), Color(0xFF0f0c29)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
+          // Background Gradient
+          Positioned.fill(
+             child: Container(
+               decoration: const BoxDecoration(
+                 gradient: LinearGradient(
+                   begin: Alignment.topLeft, end: Alignment.bottomRight,
+                   colors: [Color(0xFF000000), Color(0xFF1A1A1A), Color(0xFF000000)]
+                 )
+               ),
+             ),
           ),
           
-          // 2. ANIMATED BLOBS
-          Positioned(
-            top: -100, left: -100,
-            child: Container(
-              width: 300, height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.purpleAccent.withOpacity(0.3),
-                boxShadow: [BoxShadow(color: Colors.purpleAccent.withOpacity(0.4), blurRadius: 100)],
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -50, right: -50,
-            child: Container(
-              width: 250, height: 250,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.blueAccent.withOpacity(0.2),
-                boxShadow: [BoxShadow(color: Colors.blueAccent.withOpacity(0.4), blurRadius: 100)],
-              ),
-            ),
-          ),
-
-          // 3. CONTENT
           Center(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: Padding(
-                padding: const EdgeInsets.all(30),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // LOGO
-                    Container(
-                      width: 80, height: 80,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                        boxShadow: [BoxShadow(color: Colors.white.withOpacity(0.2), blurRadius: 20)],
-                      ),
-                      child: const Icon(CupertinoIcons.circle_grid_hex, color: Colors.white, size: 40),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      "THINGS OS",
-                      style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 3),
-                    ),
-                    const Text(
-                      "Organize your universe.",
-                      style: TextStyle(color: Colors.white54, fontSize: 14, letterSpacing: 1),
-                    ),
-                    
-                    const SizedBox(height: 60),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Logo
+                  Container(
+                    width: 80, height: 80,
+                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                    child: const Icon(CupertinoIcons.checkmark_alt_circle_fill, color: Colors.black, size: 40),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text("LifeOS", style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                  const SizedBox(height: 10),
+                  const Text("Organize your entire existence.", style: TextStyle(color: secondaryTextColor, fontSize: 14)),
+                  const SizedBox(height: 50),
 
-                    if (_isLoading)
-                      const CircularProgressIndicator(color: Colors.white)
-                    else
-                      Column(
+                  GlassContainer(
+                    width: double.infinity,
+                    borderRadius: 20,
+                    opacity: 0.1,
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
                         children: [
-                          _loginBtn("Continue with Google", CupertinoIcons.globe, () => _handleLogin("google")),
+                          CupertinoTextField(
+                            controller: _emailCtrl,
+                            placeholder: "Email",
+                            placeholderStyle: const TextStyle(color: Colors.white38),
+                            style: const TextStyle(color: Colors.white),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
+                            keyboardType: TextInputType.emailAddress,
+                          ),
                           const SizedBox(height: 15),
-                          _loginBtn("Continue with Apple", CupertinoIcons.device_laptop, () => _handleLogin("apple")),
-                          const SizedBox(height: 15),
-                          _loginBtn("Use Phone Number", CupertinoIcons.phone, () => _handleLogin("phone")),
+                          CupertinoTextField(
+                            controller: _passCtrl,
+                            placeholder: "Password",
+                             placeholderStyle: const TextStyle(color: Colors.white38),
+                            style: const TextStyle(color: Colors.white),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
+                            obscureText: true,
+                          ),
+                          const SizedBox(height: 25),
+
+                          // Action Button
+                          SizedBox(
+                            width: double.infinity,
+                            child: CupertinoButton(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(15),
+                              onPressed: _isLoading ? null : _handleEmailAuth,
+                              child: _isLoading 
+                                ? const CupertinoActivityIndicator()
+                                : Text(_isSignUp ? "Create Account" : "Sign In", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 20),
+                          
+                          // Toggle Mode
+                          GestureDetector(
+                            onTap: () => setState(() => _isSignUp = !_isSignUp),
+                            child: Text(
+                              _isSignUp ? "Already have an account? Sign In" : "New here? Create Account",
+                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                          ),
                         ],
                       ),
-                      
-                    const SizedBox(height: 40),
-                    TextButton(
-                      onPressed: () {}, 
-                      child: const Text("Create an account", style: TextStyle(color: Colors.white70))
                     ),
-                  ],
-                ),
+                  ),
+
+                  const SizedBox(height: 30),
+                  const Text("OR", style: TextStyle(color: Colors.white24, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 30),
+
+                  // Google Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: CupertinoButton(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(15),
+                      onPressed: _isLoading ? null : _handleGoogleAuth,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(CupertinoIcons.globe, color: Colors.white, size: 20),
+                          SizedBox(width: 10),
+                          Text("Continue with Google", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _loginBtn(String text, IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: GlassContainer(
-        height: 60,
-        borderRadius: 30,
-        opacity: 0.1,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white, size: 20),
-            const SizedBox(width: 15),
-            Text(text, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-          ],
-        ),
       ),
     );
   }

@@ -18,11 +18,12 @@ class Note {
   final int? buttonColor;
   final String? themeId;
 
-  final String widgetType; // 'standard', 'album', etc.
+  final String widgetType; 
   final List<DecorationLayer> designLayers;
-  
-  // NEW: Album Support
   final List<String> images;
+
+  // --- ADDED THIS PROPERTY ---
+  final bool isFullWidth; 
 
   String get plainTextContent {
     if (content.isEmpty) return "";
@@ -60,6 +61,7 @@ class Note {
     this.widgetType = 'standard',
     this.designLayers = const [],
     this.images = const [],
+    this.isFullWidth = false, // Default to half-width
   });
 
   factory Note.fromJson(Map<String, dynamic> json) {
@@ -83,6 +85,7 @@ class Note {
           ?.map((e) => DecorationLayer.fromJson(e))
           .toList() ?? [],
       images: List<String>.from(json['images'] ?? []),
+      isFullWidth: json['isFullWidth'] ?? false, // Load from JSON
     );
   }
 
@@ -104,6 +107,7 @@ class Note {
     'widgetType': widgetType,
     'designLayers': designLayers.map((l) => l.toJson()).toList(),
     'images': images,
+    'isFullWidth': isFullWidth, // Save to JSON
   };
 
   Note copyWith({
@@ -123,6 +127,7 @@ class Note {
     String? widgetType,
     List<DecorationLayer>? designLayers,
     List<String>? images,
+    bool? isFullWidth, // Added to copyWith
   }) {
     return Note(
       id: id ?? this.id,
@@ -142,6 +147,7 @@ class Note {
       widgetType: widgetType ?? this.widgetType,
       designLayers: designLayers ?? this.designLayers,
       images: images ?? this.images,
+      isFullWidth: isFullWidth ?? this.isFullWidth, // Added here
     );
   }
 }
