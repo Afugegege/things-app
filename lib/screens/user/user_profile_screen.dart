@@ -190,7 +190,10 @@ class UserProfileScreen extends StatelessWidget {
                   onDismissed: (_) {
                     userProvider.removeMemory(memory);
                   },
-                  child: GlassContainer(
+                  child: GestureDetector( // [NEW] Wrap in GestureDetector to Edit
+                    onTap: () => _showEditMemoryDialog(context, memory, userProvider),
+                    child: GlassContainer(
+                    width: double.infinity,
                     margin: const EdgeInsets.only(bottom: 10),
                     height: 60,
                     borderRadius: 15,
@@ -199,18 +202,22 @@ class UserProfileScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Row(
                         children: [
-                          Icon(Icons.psychology, color: userProvider.accentColor, size: 24),
-                          const SizedBox(width: 15),
+                          Icon(Icons.psychology, color: userProvider.accentColor, size: 20),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               memory,
                               style: TextStyle(color: textColor),
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          const SizedBox(width: 8),
+                          Icon(Icons.edit, size: 16, color: secondaryTextColor.withOpacity(0.5)),
                         ],
                       ),
                     ),
+                  ),
                   ),
                 );
               },
@@ -296,6 +303,65 @@ class UserProfileScreen extends StatelessWidget {
                   onPressed: () {
                     if (ctrl.text.isNotEmpty) {
                       Provider.of<UserProvider>(context, listen: false).addMemory(ctrl.text);
+                    }
+                    Navigator.pop(ctx);
+                  },
+                ),
+              )
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // [NEW] Edit Dialog
+  void _showEditMemoryDialog(BuildContext context, String oldMemory, UserProvider provider) {
+    final ctrl = TextEditingController(text: oldMemory);
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+      builder: (ctx) {
+        final theme = Theme.of(context);
+        final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+        final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+        final isDark = theme.brightness == Brightness.dark;
+        final inputBg = isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05);
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 40, top: 25, left: 25, right: 25),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 25),
+              Text("EDIT MEMORY", style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2)),
+              const SizedBox(height: 20),
+              
+              CupertinoTextField(
+                controller: ctrl,
+                placeholder: "Memory...",
+                placeholderStyle: TextStyle(color: secondaryTextColor),
+                style: TextStyle(color: textColor),
+                decoration: BoxDecoration(color: inputBg, borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.all(16),
+                autofocus: true,
+              ),
+              
+              const SizedBox(height: 20),
+              
+              SizedBox(
+                width: double.infinity,
+                child: CupertinoButton(
+                  color: textColor,
+                  borderRadius: BorderRadius.circular(15),
+                  child: Text("Update", style: TextStyle(color: theme.scaffoldBackgroundColor, fontWeight: FontWeight.bold)),
+                  onPressed: () {
+                    if (ctrl.text.isNotEmpty && ctrl.text != oldMemory) {
+                      provider.updateMemory(oldMemory, ctrl.text);
                     }
                     Navigator.pop(ctx);
                   },

@@ -8,25 +8,29 @@ class AiService {
   final String _model = "gpt-4o"; 
 
   // --- DYNAMIC SYSTEM PROMPTS ---
-  String _getSystemPrompt(String mode) {
+  String _getSystemPrompt(String mode, {String? customPersona}) {
     String persona = "";
     
-    switch (mode) {
-      case 'Counselor':
-        persona = "You are an empathetic counselor. Focus on mental well-being, listening, and emotional support.";
-        break;
-      case 'Health (Pulse)':
-        persona = "You are an elite Health Coach & Medical AI. Analyze health logs (Nutrition, Sleep, Symptoms) to provide actionable, medical-grade (but safe) advice.";
-        break;
-      case 'Nutritionist':
-        persona = "You are an expert Dietitian. Estimate calories/macros from food descriptions. Return ONLY JSON for food logs.";
-        break;
-      case 'Finance':
-        persona = "You are a pragmatic Financial Advisor. Focus on budgeting, saving, and expense tracking.";
-        break;
-      default: // Assistant
-        persona = "You are 'Things', an intelligent Life OS. You are productive, sharp, and concise.";
-        break;
+    if (mode == 'Roleplay' && customPersona != null && customPersona.isNotEmpty) {
+      persona = customPersona;
+    } else {
+      switch (mode) {
+        case 'Counselor':
+          persona = "You are an empathetic counselor. Focus on mental well-being, listening, and emotional support.";
+          break;
+        case 'Health (Pulse)':
+          persona = "You are an elite Health Coach & Medical AI. Analyze health logs (Nutrition, Sleep, Symptoms) to provide actionable, medical-grade (but safe) advice.";
+          break;
+        case 'Nutritionist':
+          persona = "You are an expert Dietitian. Estimate calories/macros from food descriptions. Return ONLY JSON for food logs.";
+          break;
+        case 'Finance':
+          persona = "You are a pragmatic Financial Advisor. Focus on budgeting, saving, and expense tracking.";
+          break;
+        default: // Assistant
+          persona = "You are 'Things', an intelligent Life OS. You are productive, sharp, and concise.";
+          break;
+      }
     }
 
     // Get current date so AI can calculate "yesterday"
@@ -56,6 +60,9 @@ class AiService {
     4. {"action": "log_food", "name": "food item", "calories": 0, "protein": 0, "carbs": 0, "fat": 0} 
        ^ CRITICAL: Only use this in 'Nutritionist' mode. Estimate values if not provided.
     
+    5. {"action": "remember", "fact": "User is allergic to peanuts"}
+       ^ CRITICAL: Use this when the user asks you to remember something or teaches you a fact about themselves.
+    
     If the user just wants to chat, return plain text.
     """;
   }
@@ -64,7 +71,8 @@ class AiService {
     required List<ChatMessage> history, 
     required List<String> userMemories,
     required String mode, 
-    String? contextData,  
+    String? contextData,
+    String? customPersona,
   }) async {
     if (_apiKey.isEmpty) return "Error: API Key missing in .env";
 
@@ -73,7 +81,7 @@ class AiService {
     final List<Map<String, String>> messages = [];
     
     // 1. Build System Context
-    String fullSystemContext = _getSystemPrompt(mode);
+    String fullSystemContext = _getSystemPrompt(mode, customPersona: customPersona);
     if (userMemories.isNotEmpty) {
       fullSystemContext += "\n\nUser Memories: ${userMemories.join(', ')}";
     }

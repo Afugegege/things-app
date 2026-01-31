@@ -39,6 +39,8 @@ class ChatProvider extends ChangeNotifier {
   }
 
   Future<void> regenerateLastResponse(BuildContext context, {required List<String> userMemories, required String mode}) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    
     if (_messages.isEmpty || _messages.first.isUser) return;
 
     // 1. Remove the last AI response
@@ -77,7 +79,8 @@ class ChatProvider extends ChangeNotifier {
         history: _messages.reversed.toList(), // Pass full history including the last user message
         userMemories: userMemories,
         mode: mode,
-        contextData: contextData
+        contextData: contextData,
+        customPersona: mode == 'Roleplay' ? userProvider.user.customPersona : null,
       );
 
       final aiMsg = ChatMessage(id: const Uuid().v4(), text: responseText, isUser: false, timestamp: DateTime.now());
@@ -214,6 +217,14 @@ class ChatProvider extends ChangeNotifier {
         case 'edit_note':
            // ... (Existing edit logic)
            break;
+           break;
+          
+        case 'remember':
+           final userProvider = Provider.of<UserProvider>(context, listen: false);
+           if (command['fact'] != null) {
+             userProvider.addMemory(command['fact']);
+           }
+           break;
       }
       
       // 2. SET SUCCESS
@@ -245,10 +256,12 @@ class ChatProvider extends ChangeNotifier {
   }
 
   // --- SEND LOGIC ---
+
   Future<void> sendMessage({
     required String message, 
     required List<String> userMemories,
     required String mode,
+    String? customPersona, // [NEW]
   }) async {
     final userMsg = ChatMessage(id: const Uuid().v4(), text: message, isUser: true, timestamp: DateTime.now());
     _messages.insert(0, userMsg);
@@ -274,7 +287,8 @@ class ChatProvider extends ChangeNotifier {
         history: _messages.reversed.toList(), 
         userMemories: userMemories,
         mode: mode,
-        contextData: contextData
+        contextData: contextData,
+        customPersona: customPersona,
       );
 
       final aiMsg = ChatMessage(id: const Uuid().v4(), text: responseText, isUser: false, timestamp: DateTime.now());

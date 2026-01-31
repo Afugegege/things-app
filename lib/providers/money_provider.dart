@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import '../services/storage_service.dart';
 
 class MoneyProvider extends ChangeNotifier {
-  final List<Map<String, dynamic>> _transactions = [
-    {'id': const Uuid().v4(), 'title': 'Uber Ride', 'amount': -24.50, 'date': DateTime.now().toString(), 'category': 'Transport'},
-    {'id': const Uuid().v4(), 'title': 'Freelance Project', 'amount': 450.0, 'date': DateTime.now().subtract(const Duration(hours: 4)).toString(), 'category': 'Income'},
-    {'id': const Uuid().v4(), 'title': 'Grocery Run', 'amount': -86.20, 'date': DateTime.now().subtract(const Duration(days: 1)).toString(), 'category': 'Food'},
-    {'id': const Uuid().v4(), 'title': 'Netflix Sub', 'amount': -15.00, 'date': DateTime.now().subtract(const Duration(days: 2)).toString(), 'category': 'Entertainment'},
-    {'id': const Uuid().v4(), 'title': 'Gym Membership', 'amount': -45.00, 'date': DateTime.now().subtract(const Duration(days: 3)).toString(), 'category': 'Health'},
-  ];
+  List<Map<String, dynamic>> _transactions = [];
 
   // [NEW] Dynamic Category List
   final List<String> _categories = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Health', 'Other'];
@@ -20,11 +15,27 @@ class MoneyProvider extends ChangeNotifier {
     'Shopping': 200.0,
   };
 
+  MoneyProvider() {
+    _loadData();
+  }
+
+  void _loadData() {
+    final loaded = StorageService.loadTransactions();
+    if (loaded.isNotEmpty) {
+      _transactions = loaded;
+    } else {
+      // Optional: Add default data if fresh
+    }
+    notifyListeners();
+  }
+
   List<Map<String, dynamic>> get transactions => _transactions;
   List<String> get categories => _categories; // Getter for UI
   Map<String, double> get budgets => _budgets;
 
   double get balance {
+    // Starting balance 2450.0 is arbitrary, maybe we should make this 0 or persisted too?
+    // For now keeping logic as is but note that without initial balance this might be negative.
     return 2450.0 + _transactions.fold(0.0, (sum, item) => sum + (item['amount'] as double));
   }
 
@@ -69,7 +80,7 @@ class MoneyProvider extends ChangeNotifier {
       'date': (date ?? DateTime.now()).toString(),
       'category': category,
     });
-    notifyListeners();
+    _save();
   }
 
   void editTransaction(String id, String title, double amount, String category) {
@@ -81,17 +92,22 @@ class MoneyProvider extends ChangeNotifier {
         'amount': amount,
         'category': category,
       };
-      notifyListeners();
+      _save();
     }
   }
 
   void removeTransactionById(String id) {
     _transactions.removeWhere((t) => t['id'] == id);
-    notifyListeners();
+    _save();
   }
 
   void removeTransaction(int index) {
     _transactions.removeAt(index);
+    _save();
+  }
+
+  void _save() {
+    StorageService.saveTransactions(_transactions);
     notifyListeners();
   }
 }

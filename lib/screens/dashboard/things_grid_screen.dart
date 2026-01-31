@@ -185,7 +185,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
               if (canMerge)
                 IconButton(
                   tooltip: "Merge Notes",
-                  icon: const Icon(Icons.merge, color: Colors.blueAccent), 
+                  icon: Icon(Icons.merge, color: textColor), 
                   onPressed: () {
                      notesProvider.mergeNotes(_selectedIds.toList());
                      _exitMultiSelect();
@@ -195,7 +195,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
 
               // PIN BUTTON (Optional, but useful)
               IconButton(
-                icon: const Icon(CupertinoIcons.pin, color: Colors.orangeAccent),
+                icon: Icon(CupertinoIcons.pin, color: textColor),
                 onPressed: () {
                    for (var id in _selectedIds) notesProvider.togglePin(id);
                    _exitMultiSelect();
@@ -205,7 +205,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
               // MOVE BUTTON
               IconButton(
                 tooltip: "Move to Folder",
-                icon: const Icon(CupertinoIcons.folder_badge_plus, color: Colors.purpleAccent),
+                icon: Icon(CupertinoIcons.folder_badge_plus, color: textColor),
                 onPressed: () {
                    _showFolderSelectionDialog(context);
                 }
@@ -213,7 +213,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
 
               // DELETE BUTTON
               IconButton(
-                icon: const Icon(CupertinoIcons.trash, color: Colors.redAccent), 
+                icon: Icon(CupertinoIcons.trash, color: textColor), 
                 onPressed: () {
                   showDialog(
                     context: context,
@@ -420,6 +420,9 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
   Widget _buildTaskCard(Task task) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+    
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -435,14 +438,14 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween, 
             children: [
-              Container(width: 12, height: 12, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Provider.of<UserProvider>(context).accentColor))),
-              if (task.priority > 1) const Icon(CupertinoIcons.exclamationmark_circle, size: 14, color: Colors.orangeAccent),
+              Container(width: 12, height: 12, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: textColor, width: 2))),
+              if (task.priority > 1) Icon(CupertinoIcons.exclamationmark_circle, size: 14, color: textColor),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             task.title, 
-            style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontWeight: FontWeight.bold), 
+            style: TextStyle(color: textColor, fontWeight: FontWeight.bold), 
             maxLines: 2, 
             overflow: TextOverflow.ellipsis,
           ),
@@ -455,6 +458,8 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
     final bool isExp = (tx['amount'] as double) < 0;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -468,7 +473,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
         crossAxisAlignment: CrossAxisAlignment.start, 
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(isExp ? CupertinoIcons.arrow_down_right : CupertinoIcons.arrow_up_right, color: isExp ? Colors.redAccent : Colors.greenAccent, size: 18),
+          Icon(isExp ? CupertinoIcons.arrow_down_right : CupertinoIcons.arrow_up_right, color: textColor, size: 18),
           const SizedBox(height: 5),
           Text(
             tx['title'], 
@@ -478,7 +483,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
           ),
           Text(
             "\$${(tx['amount'] as double).abs().toStringAsFixed(2)}", 
-            style: TextStyle(color: isExp ? Colors.redAccent : Colors.greenAccent, fontWeight: FontWeight.bold),
+            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
           ),
         ],
       ),

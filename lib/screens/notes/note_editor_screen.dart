@@ -187,92 +187,162 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   Widget build(BuildContext context) {
     final textColor = _getThemeTextColor(context);
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       extendBodyBehindAppBar: true,
+      resizeToAvoidBottomInset: true, // Allow automatic resizing for keyboard
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: _currentThemeId == 'midnight' && _backgroundImagePath == null 
+            ? theme.scaffoldBackgroundColor.withOpacity(0.8) 
+            : Colors.transparent, 
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textColor), 
           onPressed: _saveNote
         ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(Icons.undo, color: textColor.withOpacity(0.7), size: 20),
+              onPressed: () => _quillController.undo(),
+              tooltip: "Undo",
+            ),
+            IconButton(
+              icon: Icon(Icons.redo, color: textColor.withOpacity(0.7), size: 20),
+              onPressed: () => _quillController.redo(),
+              tooltip: "Redo",
+            ),
+          ],
+        ),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: Icon(Icons.share, color: textColor), 
-            onPressed: () => Share.share(_titleController.text)
+            onPressed: () => Share.share(_titleController.text + "\n\n" + _quillController.document.toPlainText())
           ),
-          TextButton(
+          IconButton(
+            icon: const Icon(Icons.check, color: Colors.amber, weight: 900),
             onPressed: _saveNote, 
-            child: const Text("Done", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold))
           ),
+          const SizedBox(width: 10),
         ],
       ),
       body: AnimatedContainer(
         duration: const Duration(milliseconds: 500),
         decoration: _getThemeDecoration(context), 
         child: SafeArea(
-          child: Stack(
+          child: Column(
             children: [
-              Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-                    child: TextField(
-                      controller: _titleController,
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor),
-                      decoration: InputDecoration(
-                        hintText: "Title", 
-                        hintStyle: TextStyle(color: textColor.withOpacity(0.5)), 
-                        border: InputBorder.none
-                      ),
-                    ),
+              // 1. Title Input
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
+                child: TextField(
+                  controller: _titleController,
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: textColor, fontFamily: 'serif'),
+                  decoration: InputDecoration(
+                    hintText: "Untitled Document", 
+                    hintStyle: TextStyle(color: textColor.withOpacity(0.4)), 
+                    border: InputBorder.none
                   ),
-                  if (_buttonLabel != null && _buttonLink != null)
-                    SmartButton(label: _buttonLabel!, link: _buttonLink!, colorValue: _buttonColor!),
-
-                  // --- QUILL EDITOR [FIXED] ---
-                  Expanded(
-                    child: quill.QuillEditor.basic(
-                      controller: _quillController,
-                      scrollController: _pageScrollController,
-                      focusNode: _editorFocusNode,
-                      // [FIX] Updated Configuration for v10+
-                      configurations: quill.QuillEditorConfigurations(
-                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-                        autoFocus: false,
-                        expands: true,
-                        placeholder: "Start typing...",
-                        embedBuilders: FlutterQuillEmbeds.editorBuilders(),
-                        customStyles: quill.DefaultStyles(
-                          paragraph: quill.DefaultTextBlockStyle(
-                            TextStyle(color: textColor, fontSize: 16), 
-                            const quill.HorizontalSpacing(0,0), 
-                            const quill.VerticalSpacing(0,0), 
-                            const quill.VerticalSpacing(0,0), 
-                            null
-                          ),
-                          h1: quill.DefaultTextBlockStyle(
-                            TextStyle(color: textColor, fontSize: 32, fontWeight: FontWeight.bold), 
-                            const quill.HorizontalSpacing(0,0), 
-                            const quill.VerticalSpacing(16,0), 
-                            const quill.VerticalSpacing(0,0), 
-                            null
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
 
+              if (_buttonLabel != null && _buttonLink != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: SmartButton(label: _buttonLabel!, link: _buttonLink!, colorValue: _buttonColor!),
+                ),
+              
+              const Divider(height: 1),
+
+              // 2. Editor Area (Expands to fill space)
+              Expanded(
+                child: quill.QuillEditor.basic(
+                  controller: _quillController,
+                  scrollController: _pageScrollController,
+                  focusNode: _editorFocusNode,
+                  configurations: quill.QuillEditorConfigurations(
+                    padding: const EdgeInsets.all(24),
+                    autoFocus: false,
+                    expands: true,
+                    placeholder: "Start typing...",
+                    embedBuilders: FlutterQuillEmbeds.editorBuilders(),
+                    customStyles: quill.DefaultStyles(
+                      paragraph: quill.DefaultTextBlockStyle(
+                        TextStyle(color: textColor, fontSize: 16, height: 1.5), 
+                        const quill.HorizontalSpacing(0,0), 
+                        const quill.VerticalSpacing(0,0), 
+                        const quill.VerticalSpacing(0,0), 
+                        null
+                      ),
+                      h1: quill.DefaultTextBlockStyle(
+                        TextStyle(color: textColor, fontSize: 24, fontWeight: FontWeight.bold), 
+                        const quill.HorizontalSpacing(0,0), 
+                        const quill.VerticalSpacing(16,0), 
+                        const quill.VerticalSpacing(0,0), 
+                        null
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // 3. Toolbar (Pinned to bottom)
               if (_showToolbar)
-                Positioned(
-                  bottom: MediaQuery.of(context).viewInsets.bottom,
-                  left: 0,
-                  right: 0,
-                  child: _buildSwipeToolbar(context, textColor),
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                    border: Border(top: BorderSide(color: isDark ? Colors.white10 : Colors.black12)),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))]
+                  ),
+                  height: 50,
+                  child: PageView(
+                    controller: _toolbarPageController,
+                    onPageChanged: (index) => setState(() => _currentToolbarPage = index),
+                    children: [
+                      // PAGE 1: TEXT FORMATTING
+                      ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        children: [
+                          _formatBtn(quill.Attribute.bold, Icons.format_bold, "Bold", textColor),
+                          _formatBtn(quill.Attribute.italic, Icons.format_italic, "Italic", textColor),
+                          _formatBtn(quill.Attribute.underline, Icons.format_underline, "Underline", textColor),
+                          _formatBtn(quill.Attribute.strikeThrough, Icons.strikethrough_s, "Strike", textColor),
+                          _verticalDivider(isDark),
+                          _formatBtn(quill.Attribute.h1, Icons.title, "Header", textColor),
+                          _formatBtn(quill.Attribute.ol, Icons.format_list_numbered, "Numbers", textColor),
+                          _formatBtn(quill.Attribute.ul, Icons.format_list_bulleted, "Bullets", textColor),
+                          _formatBtn(quill.Attribute.unchecked, Icons.check_box_outlined, "Check", textColor),
+                          _verticalDivider(isDark),
+                          _formatBtn(quill.Attribute.leftAlignment, Icons.format_align_left, "Left", textColor),
+                          _formatBtn(quill.Attribute.centerAlignment, Icons.format_align_center, "Center", textColor),
+                          _formatBtn(quill.Attribute.rightAlignment, Icons.format_align_right, "Right", textColor),
+                        ],
+                      ),
+                      // PAGE 2: MEDIA & EXTRAS
+                      ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        children: [
+                          IconButton(icon: Icon(Icons.palette_outlined, color: Colors.purpleAccent), onPressed: _showThemePicker),
+                          IconButton(icon: Icon(Icons.image_outlined, color: Colors.blueAccent), onPressed: _insertImage),
+                          IconButton(icon: Icon(Icons.draw_outlined, color: Colors.greenAccent), onPressed: _openDoodlePad),
+                          IconButton(icon: Icon(Icons.link, color: Colors.orangeAccent), onPressed: _showSmartButtonDialog),
+                          IconButton(
+                            icon: Icon(Icons.calendar_today_outlined, color: textColor.withOpacity(0.7)),
+                            onPressed: () {
+                               final dateStr = DateFormat('MMM d, yyyy').format(DateTime.now());
+                               _quillController.document.insert(_quillController.selection.baseOffset, "$dateStr ");
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
             ],
           ),
@@ -281,117 +351,40 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     );
   }
 
-  // ... (Rest of your toolbar, doodle, and dialog methods remain unchanged)
-  // Just ensure you copy the existing _buildSwipeToolbar, _pickBackgroundImage, 
-  // _insertImage, _openDoodlePad, _showSmartButtonDialog, _showThemePicker, etc.
-  // from your previous file to keep functionality complete.
-  
-  Widget _buildSwipeToolbar(BuildContext context, Color textColor) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final iconColor = textColor.withOpacity(0.6);
-
-    return GlassContainer(
-      borderRadius: 0,
-      opacity: isDark ? 0.1 : 0.05,
-      blur: 20,
-      child: SizedBox(
-        height: 60,
-        child: Stack(
-          children: [
-            PageView(
-              controller: _toolbarPageController,
-              onPageChanged: (index) => setState(() => _currentToolbarPage = index),
-              children: [
-                // PAGE 1: FORMATTING
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      const SizedBox(width: 20),
-                      _formatBtn(quill.Attribute.bold, Icons.format_bold, "Bold", iconColor),
-                      _formatBtn(quill.Attribute.italic, Icons.format_italic, "Italic", iconColor),
-                      _formatBtn(quill.Attribute.h1, Icons.title, "Heading 1", iconColor),
-                      _formatBtn(quill.Attribute.ol, Icons.format_list_numbered, "Numbered List", iconColor),
-                      _formatBtn(quill.Attribute.ul, Icons.format_list_bulleted, "Bullet List", iconColor),
-                      _formatBtn(quill.Attribute.unchecked, Icons.check_box_outlined, "Checkbox", iconColor),
-                      const SizedBox(width: 20),
-                    ],
-                  ),
-                ),
-                // PAGE 2: MEDIA & VIBES
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      const SizedBox(width: 20),
-                      IconButton(
-                        icon: const Icon(Icons.palette_outlined, color: Colors.purpleAccent), 
-                        onPressed: _showThemePicker, 
-                        tooltip: "Themes"
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.image_outlined, color: Colors.blueAccent), 
-                        onPressed: _insertImage, 
-                        tooltip: "Image"
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.draw, color: Colors.greenAccent), 
-                        onPressed: _openDoodlePad, 
-                        tooltip: "Doodle"
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.link, color: Colors.orangeAccent), 
-                        onPressed: _showSmartButtonDialog, 
-                        tooltip: "Link"
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.calendar_today, color: iconColor),
-                        tooltip: "Insert Date",
-                        onPressed: () {
-                           final dateStr = DateFormat('MMM d, yyyy').format(DateTime.now());
-                           final index = _quillController.selection.baseOffset;
-                           final safeIndex = index < 0 ? 0 : index;
-                           _quillController.document.insert(safeIndex, "$dateStr ");
-                        },
-                      ),
-                      const SizedBox(width: 20),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-             if (_currentToolbarPage == 0)
-              Positioned(
-                right: 5, top: 20, 
-                child: Icon(Icons.arrow_forward_ios, size: 12, color: iconColor.withOpacity(0.3))
-              ),
-             if (_currentToolbarPage == 1)
-              Positioned(
-                left: 5, top: 20, 
-                child: Icon(Icons.arrow_back_ios, size: 12, color: iconColor.withOpacity(0.3))
-              ),
-          ],
-        ),
-      ),
+  // Helper Widget
+  Widget _verticalDivider(bool isDark) {
+    return Container(
+      width: 1, 
+      height: 20, 
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 15), 
+      color: isDark ? Colors.white24 : Colors.black12
     );
   }
 
   Widget _formatBtn(quill.Attribute attribute, IconData icon, String tooltip, Color baseColor) {
-    return StatefulBuilder(
-      builder: (context, setState) {
-        final isActive = _quillController.getSelectionStyle().attributes.containsKey(attribute.key);
+    return Builder(
+      builder: (context) {
+        final currentStyle = _quillController.getSelectionStyle();
+        final isActive = currentStyle.attributes.containsKey(attribute.key) && 
+                         currentStyle.attributes[attribute.key]!.value == attribute.value;
+        
         return IconButton(
+          visualDensity: VisualDensity.compact,
           icon: Icon(
             icon, 
-            color: isActive ? Colors.blueAccent : baseColor,
+            color: isActive ? Colors.blueAccent : baseColor.withOpacity(0.7),
+            size: 20,
           ),
           tooltip: tooltip,
           onPressed: () {
             if (isActive) {
-              _quillController.formatSelection(quill.Attribute.clone(attribute, null));
+              // If it's an alignment attribute, we "turn it off" by setting alignment to null (default)
+              // For others like bold, we clone with null to remove
+              if (attribute.key == 'align') {
+                 _quillController.formatSelection(quill.Attribute.clone(quill.Attribute.leftAlignment, null));
+              } else {
+                 _quillController.formatSelection(quill.Attribute.clone(attribute, null));
+              }
             } else {
               _quillController.formatSelection(attribute);
             }

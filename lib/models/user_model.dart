@@ -17,6 +17,7 @@ class User {
     'preferences': preferences,
     'isPro': isPro,
     'dockItems': dockItems,
+    'customPersona': customPersona,
   };
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -29,6 +30,7 @@ class User {
       preferences: Map<String, dynamic>.from(json['preferences'] ?? {}),
       isPro: json['isPro'] ?? false,
       dockItems: List<String>.from(json['dockItems'] ?? ['dashboard', 'notes', 'tasks', 'ai', 'profile']),
+      customPersona: json['customPersona'],
     );
   }
 
@@ -41,7 +43,10 @@ class User {
     required this.preferences,
     this.isPro = false,
     this.dockItems = const ['dashboard', 'notes', 'tasks', 'ai', 'profile'],
+    this.customPersona,
   });
+
+  final String? customPersona;
 
   User copyWith({
     String? id,
@@ -52,6 +57,7 @@ class User {
     Map<String, dynamic>? preferences,
     bool? isPro,
     List<String>? dockItems,
+    String? customPersona,
   }) {
     return User(
       id: id ?? this.id,
@@ -62,6 +68,8 @@ class User {
       preferences: preferences ?? this.preferences,
       isPro: isPro ?? this.isPro,
       dockItems: dockItems ?? this.dockItems,
+      customPersona: customPersona ?? this.customPersona,
     );
   }
 }
+

@@ -23,17 +23,19 @@ class CountdownWidget extends StatelessWidget {
 
     final daysLeft = target.difference(DateTime.now()).inDays;
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final dimmedColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6200EA), Color(0xFF2962FF)], 
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: theme.dividerColor),
         boxShadow: [
-          BoxShadow(color: const Color(0xFF2962FF).withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 6)),
+           BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))
         ],
       ),
       child: Column(
@@ -43,17 +45,17 @@ class CountdownWidget extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Icon(CupertinoIcons.airplane, color: Colors.white, size: 20),
-              Text("${target.day}/${target.month}", style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+              Icon(CupertinoIcons.airplane, color: textColor, size: 20),
+              Text("${target.day}/${target.month}", style: TextStyle(color: dimmedColor, fontSize: 12, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 10),
-          Text("$daysLeft", style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold, height: 1.0)),
-          const Text("DAYS LEFT", style: TextStyle(color: Colors.white54, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.w600)),
+          Text("$daysLeft", style: TextStyle(color: textColor, fontSize: 48, fontWeight: FontWeight.bold, height: 1.0)),
+          Text("DAYS LEFT", style: TextStyle(color: dimmedColor, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.w600)),
           const SizedBox(height: 15),
           Align(
             alignment: Alignment.centerLeft,
-            child: Text(note.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            child: Text(note.title, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
           ),
         ],
       ),
@@ -96,15 +98,21 @@ class ChecklistWidget extends StatelessWidget {
       for (int i = 0; i < allLines.length; i++) itemIndices.add(i);
     }
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final dimmedColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+
     final bool isHabit = note.title.toLowerCase().contains('routine') || note.title.toLowerCase().contains('habit');
-    final Color accentColor = isHabit ? Colors.white : const Color(0xFF69F0AE);
+    final Color accentColor = textColor; // Monochrome
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white, // Keep somewhat similar structure but adaptive
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(color: theme.dividerColor),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -117,7 +125,7 @@ class ChecklistWidget extends StatelessWidget {
                 child: Text(
                   isHabit ? note.title.toUpperCase() : note.title, 
                   style: TextStyle(
-                    color: isHabit ? Colors.white54 : Colors.white, 
+                    color: isHabit ? dimmedColor : textColor, 
                     fontSize: isHabit ? 12 : 16, 
                     fontWeight: FontWeight.bold,
                     letterSpacing: isHabit ? 1.5 : 0.0,
@@ -126,15 +134,15 @@ class ChecklistWidget extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (isHabit) const Icon(Icons.refresh, color: Colors.white24, size: 16),
+              if (isHabit) Icon(Icons.refresh, color: dimmedColor, size: 16),
             ],
           ),
           const SizedBox(height: 15),
           
           if (itemIndices.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
-              child: Text("Empty List", style: TextStyle(color: Colors.white24)),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text("Empty List", style: TextStyle(color: dimmedColor)),
             )
           else
             Column(
@@ -153,17 +161,17 @@ class ChecklistWidget extends StatelessWidget {
                         Icon(
                           isDone ? CupertinoIcons.check_mark_circled_solid : CupertinoIcons.circle,
                           size: 22,
-                          color: isDone ? accentColor : Colors.white24,
+                          color: isDone ? accentColor : dimmedColor,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             text,
                             style: TextStyle(
-                              color: isDone ? Colors.white38 : Colors.white.withOpacity(0.9),
+                              color: isDone ? dimmedColor : textColor,
                               fontSize: 15,
                               decoration: isDone ? TextDecoration.lineThrough : null,
-                              decorationColor: Colors.white38,
+                              decorationColor: dimmedColor,
                               height: 1.2,
                             ),
                             maxLines: 1,
@@ -189,23 +197,28 @@ class QuoteWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E), 
+        color: isDark ? const Color(0xFF2C2C2E) : Colors.white, 
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: theme.dividerColor),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min, // FIX: Prevent grid crash
         children: [
-          const Icon(Icons.format_quote, size: 30, color: Colors.amber),
-          const SizedBox(height: 10),
+           Icon(Icons.format_quote, size: 30, color: textColor),
+           const SizedBox(height: 10),
           Text(
             note.plainTextContent.replaceAll('"', '').trim(),
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: textColor,
               fontSize: 16,
               height: 1.4,
               fontWeight: FontWeight.w500,
@@ -225,6 +238,10 @@ class TypographyWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final dimmedColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+
     return GlassContainer(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -234,7 +251,7 @@ class TypographyWidget extends StatelessWidget {
           Text(
             note.title.isNotEmpty ? note.title : "Untitled",
             // [FIX]: Increased Font Size & Weight
-            style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.white, fontSize: 18),
+            style: TextStyle(fontWeight: FontWeight.w800, color: textColor, fontSize: 18),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -242,7 +259,7 @@ class TypographyWidget extends StatelessWidget {
           Text(
             note.plainTextContent,
             // [FIX]: Increased Content Font Size
-            style: const TextStyle(color: Colors.white70, height: 1.4, fontSize: 15),
+            style: TextStyle(color: dimmedColor, height: 1.4, fontSize: 15),
             maxLines: 4,
             overflow: TextOverflow.ellipsis,
           ),

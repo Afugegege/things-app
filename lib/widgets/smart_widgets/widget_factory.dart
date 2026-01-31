@@ -7,6 +7,8 @@ import 'mosaic_widget.dart';
 import 'expense_widget.dart';
 import 'album_widget.dart'; // <--- Import
 
+import 'dashboard_widgets.dart'; // <--- Import
+
 class WidgetFactory {
   
   static Widget build(BuildContext context, dynamic item) {
@@ -18,7 +20,13 @@ class WidgetFactory {
 
     // 2. NOTES
     if (item is Note) {
-      // NEW: Explicit Album Type
+      // --- DASHBOARD WIDGETS ---
+      if (item.widgetType == 'sticker') return StickerWidget(note: item);
+      if (item.widgetType == 'monitor') return MonitorWidget(note: item);
+      if (item.widgetType == 'timer') return TimerWidget(note: item);
+      if (item.widgetType == 'quote') return QuoteWidget(note: item);
+
+      // Explicit Album Type
       if (item.widgetType == 'album') {
         return AlbumWidget(note: item);
       }

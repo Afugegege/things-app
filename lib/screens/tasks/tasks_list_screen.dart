@@ -64,7 +64,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
               onReorder: (oldIndex, newIndex) => tasksProvider.reorderTasks(oldIndex, newIndex),
               children: [
                 for (int i = 0; i < activeTasks.length; i++)
-                  _buildModernTaskCard(context, activeTasks[i], tasksProvider, i, Key(activeTasks[i].id)),
+                  _buildModernTaskCard(context, activeTasks[i], tasksProvider, i, ValueKey("${activeTasks[i].id}_active")),
 
                 if (doneTasks.isNotEmpty)
                   Padding(
@@ -80,7 +80,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
                   ),
 
                 for (int i = 0; i < doneTasks.length; i++)
-                  _buildModernTaskCard(context, doneTasks[i], tasksProvider, i + activeTasks.length, Key(doneTasks[i].id)),
+                  _buildModernTaskCard(context, doneTasks[i], tasksProvider, i + activeTasks.length, ValueKey("${doneTasks[i].id}_done")),
               ],
             ),
           ),
@@ -176,20 +176,23 @@ class _TasksListScreenState extends State<TasksListScreen> {
         child: Slidable(
           key: Key(task.id),
           startActionPane: ActionPane(
-          motion: const StretchMotion(),
-          extentRatio: 0.35, // how much swipe is needed
-          children: [
-            CustomSlidableAction(
-              onPressed: (_) {
-                // fallback if user taps
-                provider.toggleTask(task.id);
-              },
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              child: const Icon(Icons.check, size: 28),
-            ),
-          ],
-        ),
+            motion: const StretchMotion(),
+            dismissible: DismissiblePane(onDismissed: () {
+              provider.toggleTask(task.id);
+            }),
+            extentRatio: 0.35, // how much swipe is needed
+            children: [
+              CustomSlidableAction(
+                onPressed: (_) {
+                  // fallback if user taps
+                  provider.toggleTask(task.id);
+                },
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                child: const Icon(Icons.check, size: 28),
+              ),
+            ],
+          ),
           endActionPane: ActionPane(
             motion: const DrawerMotion(),
             extentRatio: 0.85, 

@@ -107,6 +107,23 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateMemory(String oldFact, String newFact) {
+    final updated = List<String>.from(_user.aiMemory);
+    final index = updated.indexOf(oldFact);
+    if (index != -1) {
+      updated[index] = newFact;
+      _user = _user.copyWith(aiMemory: updated);
+      _save();
+      notifyListeners();
+    }
+  }
+
+  void updateCustomPersona(String persona) {
+    _user = _user.copyWith(customPersona: persona);
+    _save();
+    notifyListeners();
+  }
+
   void reorderDock(int old, int newIdx) {
     if (newIdx > old) newIdx -= 1;
     final items = List<String>.from(_user.dockItems);

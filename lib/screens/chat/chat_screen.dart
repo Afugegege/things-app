@@ -31,7 +31,7 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _pendingActionId;
 
   // MODES LIST
-  final List<String> _modes = ['Assistant', 'Counselor', 'Health (Pulse)', 'Finance'];
+  final List<String> _modes = ['Assistant', 'Counselor', 'Health (Pulse)', 'Finance', 'Roleplay'];
   String _selectedMode = 'Assistant';
 
   @override
@@ -111,6 +111,7 @@ class _ChatScreenState extends State<ChatScreen> {
       message: text,
       userMemories: userProvider.user.aiMemory,
       mode: _selectedMode,
+      customPersona: _selectedMode == 'Roleplay' ? userProvider.user.customPersona : null,
     );
   }
 
@@ -483,6 +484,37 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ),
 
+
+                
+                // [NEW] Persona Input for Roleplay
+                if (_selectedMode == 'Roleplay')
+                   Padding(
+                     padding: const EdgeInsets.only(bottom: 15),
+                     child: GestureDetector(
+                       onTap: () => _showPersonaEditor(context),
+                       child: GlassContainer(
+                         width: double.infinity,
+                         height: 50,
+                         borderRadius: 20,
+                         opacity: isDark ? 0.1 : 0.05,
+                         padding: const EdgeInsets.symmetric(horizontal: 20),
+                         child: Row(
+                           children: [
+                             Icon(Icons.theater_comedy, color: accentColor, size: 20),
+                             const SizedBox(width: 10),
+                             Expanded(child: Text(
+                               Provider.of<UserProvider>(context).user.customPersona ?? "Set Persona...",
+                               style: TextStyle(color: textColor, fontStyle: FontStyle.italic),
+                               maxLines: 1, overflow: TextOverflow.ellipsis
+                             )),
+                             const SizedBox(width: 8),
+                             const Icon(Icons.edit, size: 16, color: Colors.grey)
+                           ],
+                         ),
+                       ),
+                     ),
+                   ),
+
                 GlassContainer(
                   height: 60,
                   borderRadius: 30,
@@ -531,6 +563,7 @@ class _ChatScreenState extends State<ChatScreen> {
       case 'Counselor': return Icons.spa;
       case 'Health (Pulse)': return Icons.favorite;
       case 'Finance': return Icons.attach_money;
+      case 'Roleplay': return Icons.theater_comedy;
       default: return Icons.smart_toy;
     }
   }
@@ -538,9 +571,51 @@ class _ChatScreenState extends State<ChatScreen> {
   String _getHintText() {
     switch (_selectedMode) {
       case 'Counselor': return "How are you feeling?";
-      case 'Health (Pulse)': return "Ask about workouts or diet...";
       case 'Finance': return "Track an expense...";
+      case 'Roleplay': return "Chat with your persona...";
       default: return "Message AI...";
     }
+  }
+
+  void _showPersonaEditor(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final ctrl = TextEditingController(text: userProvider.user.customPersona);
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 20, top: 20, left: 20, right: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text("CUSTOM PERSONA", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 2, color: Theme.of(context).disabledColor)),
+            const SizedBox(height: 15),
+            Text("Describe who the AI should be.", style: TextStyle(color: Theme.of(context).disabledColor)),
+            const SizedBox(height: 15),
+            CupertinoTextField(
+              controller: ctrl,
+              placeholder: "e.g. You are a grumpy math teacher...",
+              maxLines: 3,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor, borderRadius: BorderRadius.circular(15)),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: CupertinoButton.filled(
+                child: const Text("Save Persona"), 
+                onPressed: () {
+                   userProvider.updateCustomPersona(ctrl.text);
+                   Navigator.pop(ctx);
+                }
+              ),
+            )
+          ],
+        ),
+      ),
+    );
   }
 }

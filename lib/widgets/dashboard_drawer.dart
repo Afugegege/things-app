@@ -233,21 +233,30 @@ class DashboardDrawer extends StatelessWidget {
         ),
         title: Text(folder, style: TextStyle(color: textColor, fontSize: 14, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
         trailing: SizedBox(
-          width: 80,
+          width: 70,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              IconButton(
-                icon: const Icon(Icons.add, size: 18),
-                color: theme.textTheme.bodyMedium?.color,
-                onPressed: () => _showFolderAddOptions(context, folder, notesProvider),
-              ),
-              if (!isProtected)
-                IconButton(
-                  icon: const Icon(CupertinoIcons.trash, size: 16),
-                  color: Colors.redAccent.withOpacity(0.6),
-                  onPressed: () => _confirmDeleteFolder(context, folder, notesProvider),
+              GestureDetector(
+                onTap: () => _showFolderAddOptions(context, folder, notesProvider),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(Icons.add, size: 20, color: theme.textTheme.bodyMedium?.color),
                 ),
+              ),
+              if (!isProtected) ...[
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: () => _confirmDeleteFolder(context, folder, notesProvider),
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(CupertinoIcons.trash, size: 18, color: Colors.redAccent.withOpacity(0.6)),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
