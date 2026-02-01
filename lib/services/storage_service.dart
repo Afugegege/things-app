@@ -82,6 +82,17 @@ class StorageService {
     try { return List<Map<String, dynamic>>.from(jsonDecode(data)); } catch (e) { return []; }
   }
 
+  static const String _moneySettingsKey = 'money_settings';
+  static Future<void> saveMoneySettings(Map<String, dynamic> settings) async {
+    final String data = jsonEncode(settings);
+    await _prefs.setString(_moneySettingsKey, data);
+  }
+  static Map<String, dynamic> loadMoneySettings() {
+    final String? data = _prefs.getString(_moneySettingsKey);
+    if (data == null) return {};
+    try { return jsonDecode(data); } catch (e) { return {}; }
+  }
+
   // --- ROAM & PULSE ---
   static const String _roamKey = 'roam_trips';
   static Future<void> saveTrips(List<Map<String, dynamic>> trips) async {

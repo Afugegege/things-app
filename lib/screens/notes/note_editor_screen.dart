@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart'; 
@@ -16,8 +17,10 @@ import 'package:intl/intl.dart';
 
 import '../../models/note_model.dart';
 import '../../providers/notes_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../widgets/glass_container.dart';
 import '../../widgets/smart_button.dart';
+import '../../widgets/ai_agent_sheet.dart';
 
 class NoteEditorScreen extends StatefulWidget {
   final Note? note;
@@ -63,6 +66,126 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         }
       }
     });
+
+    // SLASH COMMAND LISTENER
+    _quillController.addListener(_checkForSlashCommand);
+  }
+
+  void _checkForSlashCommand() {
+    final selection = _quillController.selection;
+    if (!selection.isCollapsed) return;
+
+    final text = _quillController.document.toPlainText();
+    final index = selection.baseOffset;
+    
+    // Safety check for bounds
+    if (index < 1 || index > text.length) return;
+
+    final lastChar = text.substring(index - 1, index);
+    if (lastChar == '/') {
+       // Check proceeding character
+       bool shouldTrigger = false;
+       if (index == 1) {
+         shouldTrigger = true; // Start of doc
+       } else {
+         final prevChar = text.substring(index - 2, index - 1);
+         if (prevChar.trim().isEmpty) { // Whitespace or newline
+           shouldTrigger = true;
+         }
+       }
+
+       if (shouldTrigger) {
+         _showSlashMenu();
+       }
+    }
+  }
+
+  void _showSlashMenu() {
+    // Remove the slash that triggered this
+    final index = _quillController.selection.baseOffset;
+    _quillController.replaceText(index - 1, 1, '', null);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text("Insert Block", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+            ListTile(
+              leading: Icon(Icons.check_box_outlined, color: Colors.blue),
+              title: Text("To-do List"),
+              onTap: () {
+                Navigator.pop(ctx);
+                _quillController.formatSelection(quill.Attribute.unchecked);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.title, color: Colors.orange),
+              title: Text("Heading 1"),
+              onTap: () {
+                Navigator.pop(ctx);
+                _quillController.formatSelection(quill.Attribute.h1);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.format_list_bulleted, color: Colors.purple),
+              title: Text("Bulleted List"),
+              onTap: () {
+                Navigator.pop(ctx);
+                _quillController.formatSelection(quill.Attribute.ul);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.image, color: Colors.green),
+              title: Text("Image"),
+              onTap: () {
+                Navigator.pop(ctx);
+                _insertImage();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.auto_awesome, color: Colors.pink),
+              title: Text("Ask AI"),
+              onTap: () {
+                Navigator.pop(ctx);
+                _openAIAgent();
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openAIAgent() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => AIAgentSheet(
+        currentContent: _quillController.document.toPlainText(),
+        onReplaceContent: (text) {
+           _quillController.document.delete(0, _quillController.document.length);
+           _quillController.document.insert(0, text);
+           Navigator.pop(ctx); // Close sheet
+        },
+        onInsertContent: (text) {
+           final index = _quillController.selection.baseOffset;
+           _quillController.document.insert(index >= 0 ? index : _quillController.document.length - 1, "\n$text\n");
+           Navigator.pop(ctx); // Close sheet
+        },
+      ),
+    );
   }
 
   void _setupEditor() {
@@ -172,226 +295,317 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     }
   }
 
-  Color _getThemeTextColor(BuildContext context) {
-    if (_currentThemeId == 'paper') return Colors.black87;
-    if (_currentThemeId == 'cyber') return Colors.white;
-    if (_backgroundImagePath != null) return Colors.white; 
-
-    if (_backgroundColor != null) {
-       return ThemeData.estimateBrightnessForColor(_backgroundColor!) == Brightness.dark ? Colors.white : Colors.black;
-    }
-    return Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final textColor = _getThemeTextColor(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final userProvider = Provider.of<UserProvider>(context); // Access UserProvider
+    final accentColor = userProvider.accentColor;
+
+    // Determine Text Color based on background
+    Color textColor = isDark ? Colors.white : Colors.black;
+    if (_backgroundImagePath != null || _currentThemeId == 'cyber' || _currentThemeId == 'midnight') {
+      textColor = Colors.white;
+    }
+    if (_currentThemeId == 'paper') textColor = Colors.black87;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       extendBodyBehindAppBar: true,
-      resizeToAvoidBottomInset: true, // Allow automatic resizing for keyboard
-      appBar: AppBar(
-        backgroundColor: _currentThemeId == 'midnight' && _backgroundImagePath == null 
-            ? theme.scaffoldBackgroundColor.withOpacity(0.8) 
-            : Colors.transparent, 
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: textColor), 
-          onPressed: _saveNote
-        ),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(Icons.undo, color: textColor.withOpacity(0.7), size: 20),
-              onPressed: () => _quillController.undo(),
-              tooltip: "Undo",
+      resizeToAvoidBottomInset: false, 
+      body: Stack(
+        children: [
+          // 1. BACKGROUND
+          Positioned.fill(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
+              decoration: _getThemeDecoration(context),
             ),
-            IconButton(
-              icon: Icon(Icons.redo, color: textColor.withOpacity(0.7), size: 20),
-              onPressed: () => _quillController.redo(),
-              tooltip: "Redo",
-            ),
-          ],
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.share, color: textColor), 
-            onPressed: () => Share.share(_titleController.text + "\n\n" + _quillController.document.toPlainText())
           ),
-          IconButton(
-            icon: const Icon(Icons.check, color: Colors.amber, weight: 900),
-            onPressed: _saveNote, 
-          ),
-          const SizedBox(width: 10),
-        ],
-      ),
-      body: AnimatedContainer(
-        duration: const Duration(milliseconds: 500),
-        decoration: _getThemeDecoration(context), 
-        child: SafeArea(
-          child: Column(
-            children: [
-              // 1. Title Input
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
-                child: TextField(
-                  controller: _titleController,
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: textColor, fontFamily: 'serif'),
-                  decoration: InputDecoration(
-                    hintText: "Untitled Document", 
-                    hintStyle: TextStyle(color: textColor.withOpacity(0.4)), 
-                    border: InputBorder.none
+          
+          // 2. EDITOR AREA
+          SafeArea(
+            child: Column(
+              children: [
+                const SizedBox(height: 60), // Space for Header
+                
+                // Title
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                  child: TextField(
+                    controller: _titleController,
+                    style: TextStyle(
+                      fontSize: 28, 
+                      fontWeight: FontWeight.w700, 
+                      color: textColor.withOpacity(0.9), 
+                      fontFamily: isDark ? 'Courier' : null, 
+                      letterSpacing: -0.5
+                    ),
+                    decoration: InputDecoration(
+                      hintText: "Untitled Note", 
+                      hintStyle: TextStyle(color: textColor.withOpacity(0.3)), 
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero
+                    ),
                   ),
                 ),
-              ),
+                
+                // Smart Link Button (if exists)
+                if (_buttonLabel != null && _buttonLink != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 10),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: SmartButton(label: _buttonLabel!, link: _buttonLink!, colorValue: _buttonColor!),
+                    ),
+                  ),
 
-              if (_buttonLabel != null && _buttonLink != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: SmartButton(label: _buttonLabel!, link: _buttonLink!, colorValue: _buttonColor!),
-                ),
-              
-              const Divider(height: 1),
-
-              // 2. Editor Area (Expands to fill space)
-              Expanded(
-                child: quill.QuillEditor.basic(
-                  controller: _quillController,
-                  scrollController: _pageScrollController,
-                  focusNode: _editorFocusNode,
-                  configurations: quill.QuillEditorConfigurations(
-                    padding: const EdgeInsets.all(24),
-                    autoFocus: false,
-                    expands: true,
-                    placeholder: "Start typing...",
-                    embedBuilders: FlutterQuillEmbeds.editorBuilders(),
-                    customStyles: quill.DefaultStyles(
-                      paragraph: quill.DefaultTextBlockStyle(
-                        TextStyle(color: textColor, fontSize: 16, height: 1.5), 
-                        const quill.HorizontalSpacing(0,0), 
-                        const quill.VerticalSpacing(0,0), 
-                        const quill.VerticalSpacing(0,0), 
-                        null
-                      ),
-                      h1: quill.DefaultTextBlockStyle(
-                        TextStyle(color: textColor, fontSize: 24, fontWeight: FontWeight.bold), 
-                        const quill.HorizontalSpacing(0,0), 
-                        const quill.VerticalSpacing(16,0), 
-                        const quill.VerticalSpacing(0,0), 
-                        null
+                // Editor
+                Expanded(
+                  child: quill.QuillEditor.basic(
+                    controller: _quillController,
+                    scrollController: _pageScrollController,
+                    focusNode: _editorFocusNode,
+                    configurations: quill.QuillEditorConfigurations(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 100), 
+                      autoFocus: false,
+                      expands: true,
+                      placeholder: "Start typing...",
+                      embedBuilders: FlutterQuillEmbeds.editorBuilders(),
+                      customStyles: quill.DefaultStyles(
+                        paragraph: quill.DefaultTextBlockStyle(
+                          TextStyle(color: textColor.withOpacity(0.9), fontSize: 17, height: 1.6), 
+                          const quill.HorizontalSpacing(0,0), 
+                          const quill.VerticalSpacing(0,0), 
+                          const quill.VerticalSpacing(0,0), 
+                          null
+                        ),
+                        h1: quill.DefaultTextBlockStyle(
+                          TextStyle(color: textColor, fontSize: 32, fontWeight: FontWeight.bold, height: 1.2), 
+                          const quill.HorizontalSpacing(0,0), 
+                          const quill.VerticalSpacing(16,0), 
+                          const quill.VerticalSpacing(0,0), 
+                          null
+                        ),
+                        h2: quill.DefaultTextBlockStyle(
+                          TextStyle(color: textColor.withOpacity(0.9), fontSize: 24, fontWeight: FontWeight.w600), 
+                          const quill.HorizontalSpacing(0,0), 
+                          const quill.VerticalSpacing(16,0), 
+                          const quill.VerticalSpacing(0,0), 
+                          null
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-
-              // 3. Toolbar (Pinned to bottom)
-              if (_showToolbar)
-                Container(
+              ],
+            ),
+          ),
+          
+          // 3. FROSTY GLASS HEADER (iOS Style)
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: _backgroundImagePath != null 
+                    ? ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20) 
+                    : ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  height: 90, // Include StatusBar area
+                  padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-                    border: Border(top: BorderSide(color: isDark ? Colors.white10 : Colors.black12)),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))]
+                    color: (isDark ? Colors.black : Colors.white).withOpacity(0.2),
+                    border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1)))
                   ),
-                  height: 50,
-                  child: PageView(
-                    controller: _toolbarPageController,
-                    onPageChanged: (index) => setState(() => _currentToolbarPage = index),
-                    children: [
-                      // PAGE 1: TEXT FORMATTING
-                      ListView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        children: [
-                          _formatBtn(quill.Attribute.bold, Icons.format_bold, "Bold", textColor),
-                          _formatBtn(quill.Attribute.italic, Icons.format_italic, "Italic", textColor),
-                          _formatBtn(quill.Attribute.underline, Icons.format_underline, "Underline", textColor),
-                          _formatBtn(quill.Attribute.strikeThrough, Icons.strikethrough_s, "Strike", textColor),
-                          _verticalDivider(isDark),
-                          _formatBtn(quill.Attribute.h1, Icons.title, "Header", textColor),
-                          _formatBtn(quill.Attribute.ol, Icons.format_list_numbered, "Numbers", textColor),
-                          _formatBtn(quill.Attribute.ul, Icons.format_list_bulleted, "Bullets", textColor),
-                          _formatBtn(quill.Attribute.unchecked, Icons.check_box_outlined, "Check", textColor),
-                          _verticalDivider(isDark),
-                          _formatBtn(quill.Attribute.leftAlignment, Icons.format_align_left, "Left", textColor),
-                          _formatBtn(quill.Attribute.centerAlignment, Icons.format_align_center, "Center", textColor),
-                          _formatBtn(quill.Attribute.rightAlignment, Icons.format_align_right, "Right", textColor),
-                        ],
-                      ),
-                      // PAGE 2: MEDIA & EXTRAS
-                      ListView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        children: [
-                          IconButton(icon: Icon(Icons.palette_outlined, color: Colors.purpleAccent), onPressed: _showThemePicker),
-                          IconButton(icon: Icon(Icons.image_outlined, color: Colors.blueAccent), onPressed: _insertImage),
-                          IconButton(icon: Icon(Icons.draw_outlined, color: Colors.greenAccent), onPressed: _openDoodlePad),
-                          IconButton(icon: Icon(Icons.link, color: Colors.orangeAccent), onPressed: _showSmartButtonDialog),
-                          IconButton(
-                            icon: Icon(Icons.calendar_today_outlined, color: textColor.withOpacity(0.7)),
-                            onPressed: () {
-                               final dateStr = DateFormat('MMM d, yyyy').format(DateTime.now());
-                               _quillController.document.insert(_quillController.selection.baseOffset, "$dateStr ");
-                            },
+                  child: NavigationToolbar(
+                    leading: CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: Colors.black.withOpacity(0.2), shape: BoxShape.circle),
+                        child: const Icon(CupertinoIcons.back, color: Colors.white, size: 20),
+                      ), 
+                      onPressed: _saveNote
+                    ),
+                    middle: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _headerBtn(CupertinoIcons.arrow_turn_up_left, () => _quillController.undo()),
+                        const SizedBox(width: 8),
+                         _headerBtn(CupertinoIcons.arrow_turn_up_right, () => _quillController.redo()),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _headerBtn(CupertinoIcons.share, () => Share.share(_quillController.document.toPlainText())),
+                        const SizedBox(width: 8),
+                         // AI Button with Glow and Accent Color
+                        GestureDetector(
+                          onTap: _openAIAgent,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: accentColor.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: accentColor.withOpacity(0.5))
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(CupertinoIcons.sparkles, color: accentColor, size: 14),
+                                const SizedBox(width: 4),
+                                Text("AI", style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 12))
+                              ],
+                            ),
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+                        const SizedBox(width: 8),
+                         // Save Button covering accent color request
+                         CupertinoButton(
+                           padding: EdgeInsets.zero,
+                           minSize: 30,
+                           onPressed: _saveNote,
+                           child: Container(
+                             width: 36, height: 36,
+                             decoration: BoxDecoration(color: accentColor.withOpacity(0.2), shape: BoxShape.circle, border: Border.all(color: accentColor.withOpacity(0.5))),
+                             child: Icon(CupertinoIcons.checkmark_alt, color: accentColor, size: 18),
+                           ),
+                         ),
+                        const SizedBox(width: 16),
+                      ],
+                    ),
                   ),
                 ),
-            ],
+              ),
+            ),
           ),
+
+          // 4. FLOATING FROSTY TOOLBAR (Dock Style)
+          if (_showToolbar && MediaQuery.of(context).viewInsets.bottom < 100) 
+          Positioned(
+            bottom: 30, left: 20, right: 20,
+            child: Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    decoration: BoxDecoration(
+                      color: (isDark ? const Color(0xFF1C1C1E) : Colors.white).withOpacity(0.85),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(color: Colors.white.withOpacity(0.15)),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 20, offset: const Offset(0, 10))
+                      ]
+                    ),
+                    height: 60,
+                    child: PageView(
+                      controller: _toolbarPageController,
+                      children: [
+                        // FORMATTING DOCK
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _dockBtn(quill.Attribute.bold, CupertinoIcons.bold, accentColor, isActive: _isAttrActive(quill.Attribute.bold)),
+                            _dockBtn(quill.Attribute.italic, CupertinoIcons.italic, accentColor, isActive: _isAttrActive(quill.Attribute.italic)),
+                            _dockBtn(quill.Attribute.h1, Icons.title, accentColor, isActive: _isAttrActive(quill.Attribute.h1)), 
+                            _dockBtn(quill.Attribute.ul, CupertinoIcons.list_bullet, accentColor, isActive: _isAttrActive(quill.Attribute.ul)),
+                            _dockBtn(quill.Attribute.ol, CupertinoIcons.list_number, accentColor, isActive: _isAttrActive(quill.Attribute.ol)),
+                            _dockBtn(quill.Attribute.unchecked, CupertinoIcons.checkmark_rectangle, accentColor, isActive: _isAttrActive(quill.Attribute.unchecked)),
+                            IconButton(
+                              icon: const Icon(CupertinoIcons.chevron_right_circle_fill, color: Colors.grey), 
+                              onPressed: () => _toolbarPageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.ease)
+                            )
+                          ],
+                        ),
+                        // MEDIA DOCK
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            IconButton(
+                              icon: const Icon(CupertinoIcons.chevron_left_circle_fill, color: Colors.grey), 
+                              onPressed: () => _toolbarPageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.ease)
+                            ),
+                            // Use Accent Color for main media entry points
+                            _mediaBtn(CupertinoIcons.photo, accentColor, _insertImage),
+                            _mediaBtn(CupertinoIcons.paintbrush, Colors.pinkAccent, _openDoodlePad), // Keep distinct
+                            _mediaBtn(CupertinoIcons.link, Colors.orangeAccent, _showSmartButtonDialog),
+                            _mediaBtn(CupertinoIcons.paintbrush_fill, Colors.purpleAccent, _showThemePicker), 
+                          ],
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          )
+        ],
+      )
+    );
+  }
+
+  // --- NEW WIDGET HELPERS ---
+
+  Widget _headerBtn(IconData icon, VoidCallback onTap) {
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      minSize: 30,
+      onPressed: onTap,
+      child: Container(
+        width: 36, height: 36,
+        decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+        child: Icon(icon, color: Colors.white, size: 18),
+      ),
+    );
+  }
+
+  bool _isAttrActive(quill.Attribute attr) {
+     final style = _quillController.getSelectionStyle();
+     return style.attributes.containsKey(attr.key) && style.attributes[attr.key]!.value == attr.value;
+  }
+
+  Widget _dockBtn(quill.Attribute attr, IconData icon, Color accentColor, {bool isActive = false}) {
+    return GestureDetector(
+      onTap: () {
+        if (isActive) {
+           _quillController.formatSelection(quill.Attribute.clone(attr, null));
+        } else {
+           _quillController.formatSelection(attr);
+        }
+        setState(() {});
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isActive ? accentColor.withOpacity(0.2) : Colors.transparent, // Gentle highlight
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          icon, 
+          size: 22, 
+          color: isActive ? accentColor : Colors.black87
         ),
       ),
     );
   }
 
-  // Helper Widget
-  Widget _verticalDivider(bool isDark) {
-    return Container(
-      width: 1, 
-      height: 20, 
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 15), 
-      color: isDark ? Colors.white24 : Colors.black12
-    );
-  }
 
-  Widget _formatBtn(quill.Attribute attribute, IconData icon, String tooltip, Color baseColor) {
-    return Builder(
-      builder: (context) {
-        final currentStyle = _quillController.getSelectionStyle();
-        final isActive = currentStyle.attributes.containsKey(attribute.key) && 
-                         currentStyle.attributes[attribute.key]!.value == attribute.value;
-        
-        return IconButton(
-          visualDensity: VisualDensity.compact,
-          icon: Icon(
-            icon, 
-            color: isActive ? Colors.blueAccent : baseColor.withOpacity(0.7),
-            size: 20,
-          ),
-          tooltip: tooltip,
-          onPressed: () {
-            if (isActive) {
-              // If it's an alignment attribute, we "turn it off" by setting alignment to null (default)
-              // For others like bold, we clone with null to remove
-              if (attribute.key == 'align') {
-                 _quillController.formatSelection(quill.Attribute.clone(quill.Attribute.leftAlignment, null));
-              } else {
-                 _quillController.formatSelection(quill.Attribute.clone(attribute, null));
-              }
-            } else {
-              _quillController.formatSelection(attribute);
-            }
-            setState(() {});
-          },
-        );
-      },
+  Widget _mediaBtn(IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, size: 24, color: color),
+      ),
     );
   }
 
@@ -440,7 +654,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                children: [
                  Text("Doodle Board", style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontSize: 18)),
                  IconButton(
-                   icon: const Icon(Icons.check, color: Colors.green),
+                   icon: Icon(Icons.check, color: Provider.of<UserProvider>(context).accentColor),
                    onPressed: () async {
                      final Color inkColor = isDark ? Colors.white : Colors.black;
                      

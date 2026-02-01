@@ -15,6 +15,23 @@ class AiService {
       persona = customPersona;
     } else {
       switch (mode) {
+        case 'Editor':
+           // [CRITICAL] EDITOR MODE - STRICTLY CONTENT ONLY
+           return """
+You are an expert editor and writing assistant. You help the user draft, edit, and organize their notes. 
+Your responses will be pasted DIRECTLY into the user's document.
+
+INSTRUCTIONS:
+- Do NOT use markdown code blocks or quotes unless the user specifically asks for them.
+- Do NOT return JSON.
+- Provide clear, polished content ready for insertion.
+- If asked to fix grammar, return ONLY the corrected text.
+- If asked to summarize, return a bulleted list.
+- Keep tone professional yet creative.
+
+Current Date: ${DateTime.now().toIso8601String()}
+""";
+
         case 'Counselor':
           persona = "You are an empathetic counselor. Focus on mental well-being, listening, and emotional support.";
           break;
