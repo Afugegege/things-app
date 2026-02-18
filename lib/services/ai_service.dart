@@ -35,12 +35,7 @@ Current Date: ${DateTime.now().toIso8601String()}
         case 'Counselor':
           persona = "You are an empathetic counselor. Focus on mental well-being, listening, and emotional support.";
           break;
-        case 'Health (Pulse)':
-          persona = "You are an elite Health Coach & Medical AI. Analyze health logs (Nutrition, Sleep, Symptoms) to provide actionable, medical-grade (but safe) advice.";
-          break;
-        case 'Nutritionist':
-          persona = "You are an expert Dietitian. Estimate calories/macros from food descriptions. Return ONLY JSON for food logs.";
-          break;
+
         case 'Finance':
           persona = "You are a pragmatic Financial Advisor. Focus on budgeting, saving, and expense tracking.";
           break;
@@ -74,8 +69,7 @@ Current Date: ${DateTime.now().toIso8601String()}
     3. {"action": "add_transaction", "title": "item", "amount": -0.00, "category": "General", "date": "ISO8601_String"}
        ^ CRITICAL: If the user says "yesterday" or specifies a time, calculate the exact ISO8601 date based on the Current Date/Time provided above and put it in the "date" field.
 
-    4. {"action": "log_food", "name": "food item", "calories": 0, "protein": 0, "carbs": 0, "fat": 0} 
-       ^ CRITICAL: Only use this in 'Nutritionist' mode. Estimate values if not provided.
+
     
     5. {"action": "remember", "fact": "User is allergic to peanuts"}
        ^ CRITICAL: Use this when the user asks you to remember something or teaches you a fact about themselves.
@@ -139,63 +133,5 @@ Current Date: ${DateTime.now().toIso8601String()}
     }
   }
 
-  Future<List<Map<String, String>>> generateFlashcards(String topic) async {
-    if (_apiKey.isEmpty) return [];
-    
-    final url = Uri.parse('https://api.openai.com/v1/chat/completions');
-    
-    final systemPrompt = """
-You are a flashcard generator. Generate 10-15 high-quality flashcards about the given topic.
 
-CRITICAL: Return ONLY a valid JSON array with no markdown formatting or code blocks.
-Format: [{"q":"question","a":"answer"},{"q":"question","a":"answer"},...]
-
-Make questions clear and concise. Answers should be accurate and brief (1-3 sentences max).
-""";
-
-    try {
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_apiKey'
-        },
-        body: jsonEncode({
-          "model": _model,
-          "messages": [
-            {"role": "system", "content": systemPrompt},
-            {"role": "user", "content": "Generate flashcards about: $topic"}
-          ],
-          "temperature": 0.7,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final content = data['choices'][0]['message']['content'] as String;
-        
-        // Clean potential markdown formatting
-        String cleaned = content.trim();
-        if (cleaned.startsWith('```json')) {
-          cleaned = cleaned.substring(7);
-        } else if (cleaned.startsWith('```')) {
-          cleaned = cleaned.substring(3);
-        }
-        if (cleaned.endsWith('```')) {
-          cleaned = cleaned.substring(0, cleaned.length - 3);
-        }
-        cleaned = cleaned.trim();
-        
-        final List<dynamic> cards = jsonDecode(cleaned);
-        return cards.map((c) => {
-          'q': c['q'].toString(),
-          'a': c['a'].toString()
-        }).toList();
-      }
-      return [];
-    } catch (e) {
-      print('Flashcard generation error: $e');
-      return [];
-    }
-  }
 }

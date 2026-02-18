@@ -93,7 +93,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
               height: 60,
               borderRadius: 30,
               blur: 20,
-              opacity: isDark ? 0.15 : 0.05, 
+              opacity: isDark ? 0.15 : 0.12,  
               padding: const EdgeInsets.symmetric(horizontal: 5),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -141,24 +141,27 @@ class _TasksListScreenState extends State<TasksListScreen> {
     Color iconColor = secondaryTextColor;
 
     if (isDark) {
+      cardColor = theme.cardColor;
+      contentColor = Colors.white;
+      
       switch (task.priority) {
-        case 1: cardColor = const Color(0xFF983301); contentColor = Colors.white; break; 
-        case 2: cardColor = const Color(0xFF8a1c1c); contentColor = Colors.white; break; 
-        case 3: cardColor = const Color(0xFF997b19); contentColor = Colors.white; break; 
-        case 4: cardColor = const Color(0xFF206126); contentColor = Colors.white; break; 
-        case 5: cardColor = const Color(0xFF1a3b80); contentColor = Colors.white; break; 
-        case 6: cardColor = const Color(0xFF5e1a80); contentColor = Colors.white; break; 
-        default: cardColor = Colors.white.withOpacity(0.05); 
+        case 1: iconColor = const Color(0xFFFF9800); break; // Orange
+        case 2: iconColor = const Color(0xFFEF5350); break; // Red
+        case 3: iconColor = const Color(0xFFFFD54F); break; // Amber
+        case 4: iconColor = const Color(0xFF66BB6A); break; // Green
+        case 5: iconColor = const Color(0xFF42A5F5); break; // Blue
+        case 6: iconColor = const Color(0xFFAB47BC); break; // Purple
+        default: iconColor = secondaryTextColor; 
       }
     } else {
       switch (task.priority) {
-        case 1: cardColor = const Color(0xFFFFF3E0); break; 
-        case 2: cardColor = const Color(0xFFFFEBEE); break; 
-        case 3: cardColor = const Color(0xFFFFFDE7); break; 
-        case 4: cardColor = const Color(0xFFE8F5E9); break; 
-        case 5: cardColor = const Color(0xFFE3F2FD); break; 
-        case 6: cardColor = const Color(0xFFF3E5F5); break; 
-        default: cardColor = Colors.black.withOpacity(0.05); 
+        case 1: cardColor = const Color(0xFFFFE0B2); break; // Orange 100
+        case 2: cardColor = const Color(0xFFFFCDD2); break; // Red 100
+        case 3: cardColor = const Color(0xFFFFF9C4); break; // Yellow 100
+        case 4: cardColor = const Color(0xFFC8E6C9); break; // Green 100
+        case 5: cardColor = const Color(0xFFBBDEFB); break; // Blue 100
+        case 6: cardColor = const Color(0xFFE1BEE7); break; // Purple 100
+        default: cardColor = Colors.black.withOpacity(0.08); 
       }
     }
 
@@ -177,9 +180,12 @@ class _TasksListScreenState extends State<TasksListScreen> {
           key: Key(task.id),
           startActionPane: ActionPane(
             motion: const StretchMotion(),
-            dismissible: DismissiblePane(onDismissed: () {
-              provider.toggleTask(task.id);
-            }),
+            dismissible: DismissiblePane(
+              dismissThreshold: 0.2,
+              onDismissed: () {
+                provider.toggleTask(task.id);
+              },
+            ),
             extentRatio: 0.35, // how much swipe is needed
             children: [
               CustomSlidableAction(

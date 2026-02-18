@@ -54,69 +54,38 @@ class LifeAppScaffold extends StatelessWidget {
             ),
           ),
 
-          // 2. Glass Header Layer
+          // 2. Seamless Header Layer (Transparent)
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             height: 100,
-            child: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(
-                  // Use theme surface color with opacity for glass effect
-                  color: themeData.canvasColor.withOpacity(0.7),
-                  alignment: Alignment.bottomCenter,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                  child: SafeArea(
-                    bottom: false,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Left Icon (Menu or Back)
-                        if (useDrawer)
-                          Builder(
-                            builder: (context) => GestureDetector(
-                              onTap: () {
-                                if (onOpenDrawer != null) {
-                                  onOpenDrawer!();
-                                } else {
-                                  Scaffold.of(context).openDrawer();
-                                }
-                              },
-                              child: _buildHeaderIcon(context, Icons.menu),
-                            ),
-                          )
-                        else if (Navigator.canPop(context) || onBack != null)
-                          GestureDetector(
-                            onTap: () {
-                              if (onBack != null) {
-                                onBack?.call();
-                              } else {
-                                Navigator.pop(context);
-                              }
-                            },
-                            child: _buildHeaderIcon(context, CupertinoIcons.back),
-                          )
-                        else
-                          const SizedBox(width: 40), // Spacer
-
-                        // Center Title
-                        Text(
-                          title.toUpperCase(),
-                          style: themeData.textTheme.bodyLarge?.copyWith(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 3.0,
-                          ),
-                        ),
-
-                        // Right Actions
-                        Row(children: actions ?? [const SizedBox(width: 40)]),
-                      ],
+            child: Container(
+              color: themeData.scaffoldBackgroundColor, // Seamless match
+              alignment: Alignment.bottomCenter,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+              child: SafeArea(
+                bottom: false,
+                  child: NavigationToolbar(
+                    centerMiddle: true,
+                    middleSpacing: 20.0,
+                    leading: _buildLeading(context),
+                    middle: Text(
+                      title.toUpperCase(),
+                      style: themeData.textTheme.bodyLarge?.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.0, 
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: actions ?? [],
                     ),
                   ),
-                ),
               ),
             ),
           ),
@@ -124,6 +93,35 @@ class LifeAppScaffold extends StatelessWidget {
       ),
       ),
     );
+  }
+
+  Widget _buildLeading(BuildContext context) {
+    if (useDrawer) {
+      return Builder(
+        builder: (context) => GestureDetector(
+          onTap: () {
+            if (onOpenDrawer != null) {
+              onOpenDrawer!();
+            } else {
+              Scaffold.of(context).openDrawer();
+            }
+          },
+          child: _buildHeaderIcon(context, Icons.menu),
+        ),
+      );
+    } else if (Navigator.canPop(context) || onBack != null) {
+      return GestureDetector(
+        onTap: () {
+          if (onBack != null) {
+            onBack?.call();
+          } else {
+            Navigator.pop(context);
+          }
+        },
+        child: _buildHeaderIcon(context, CupertinoIcons.back),
+      );
+    }
+    return const SizedBox();
   }
 
   Widget _buildHeaderIcon(BuildContext context, IconData icon) {

@@ -72,7 +72,7 @@ class _FloatingBottomNavState extends State<FloatingBottomNav> with SingleTicker
           break;
         case "Spend":
           Provider.of<MoneyProvider>(context, listen: false).addTransaction("Quick Expense", -10.0, "General");
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Added -$10 Expense")));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Added -\$10 Expense")));
           break;
       }
     });

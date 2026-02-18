@@ -7,7 +7,7 @@ class UserProvider extends ChangeNotifier {
   User _user = User(
     id: 'user_001',
     name: 'Traveler',
-    email: 'traveler@lifeos.app',
+    email: 'traveler@things.app',
     aiMemory: ["I love pizza", "My goal is to be organized"], 
     preferences: {
       'isDarkMode': true,
@@ -38,10 +38,7 @@ class UserProvider extends ChangeNotifier {
     'calendar': {'label': 'Plan', 'icon': CupertinoIcons.calendar},
     'profile': {'label': 'You', 'icon': CupertinoIcons.person_fill},
     'wallet': {'label': 'Wallet', 'icon': CupertinoIcons.money_dollar},
-    'roam': {'label': 'Roam', 'icon': CupertinoIcons.map},
-    'pulse': {'label': 'Pulse', 'icon': CupertinoIcons.heart},
-    'flashcards': {'label': 'Flashcards', 'icon': CupertinoIcons.bolt_horizontal_circle_fill},
-    'bucket': {'label': 'Bucket List', 'icon': CupertinoIcons.star_circle_fill},
+
   };
   
   final Map<String, bool> _folderVisibility = {};
@@ -60,11 +57,9 @@ class UserProvider extends ChangeNotifier {
     // Merge with defaults to ensure new keys exist
     return {
       'Wallet': stored['Wallet'] ?? true,
-      'Roam': stored['Roam'] ?? false, 
+
       'Focus': stored['Focus'] ?? true,
       'Brain': stored['Brain'] ?? true,
-      'Flashcards': stored['Flashcards'] ?? true, // Default to true
-      'Bucket': stored['Bucket'] ?? true,         // Default to true
       'Events': stored['Events'] ?? true,
     };
   }
@@ -137,7 +132,7 @@ class UserProvider extends ChangeNotifier {
   void addToDock(String id) {
     final items = List<String>.from(_user.dockItems);
     if (!items.contains(id)) {
-      if (items.length >= 5) items.removeLast();
+      if (items.length >= 6) items.removeLast();
       items.add(id);
       _user = _user.copyWith(dockItems: items);
       _save();

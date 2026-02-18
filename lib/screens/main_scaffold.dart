@@ -12,11 +12,8 @@ import 'calendar/calendar_screen.dart';
 import 'user/user_profile_screen.dart';
 import 'dashboard/things_grid_screen.dart';
 import 'apps/wallet_screen.dart';
-import 'apps/roam_screen.dart';
-import 'apps/pulse_screen.dart';
-import 'apps/brain_screen.dart'; 
-import 'tools/flashcard_screen.dart';
-import 'tools/bucket_list_screen.dart';
+import 'apps/brain_screen.dart';
+
 
 import '../widgets/dashboard_drawer.dart'; 
 import '../services/notification_service.dart';
@@ -51,10 +48,6 @@ class _MainScaffoldState extends State<MainScaffold> {
       case 'ai': return const ChatScreen();
       case 'calendar': return const CalendarScreen();
       case 'wallet': return const WalletScreen();
-      case 'roam': return const RoamScreen();
-      case 'pulse': return const PulseScreen();
-      case 'flashcards': return const FlashCardScreen();
-      case 'bucket': return const BucketListScreen();
       case 'profile': return const UserProfileScreen();
       // Settings and Profile are handled by Navigator.push, not here.
       default: return ThingsGridScreen(parentScaffoldKey: _mainScaffoldKey);
@@ -144,15 +137,24 @@ class _MainScaffoldState extends State<MainScaffold> {
                 height: 75,
                 decoration: BoxDecoration(
                   color: _isDockEditing 
-                      ? Colors.white.withOpacity(0.1) 
-                      : const Color(0xFF1C1C1E).withOpacity(0.65), 
+                      ? (theme.brightness == Brightness.dark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1))
+                      : (theme.brightness == Brightness.dark 
+                          ? const Color(0xFF1C1C1E).withOpacity(0.65) 
+                          : Colors.white.withOpacity(0.85)), 
                   borderRadius: BorderRadius.circular(40),
                   border: Border.all(
-                    color: _isDockEditing ? Colors.white.withOpacity(0.2) : Colors.white.withOpacity(0.1), 
+                    color: theme.brightness == Brightness.dark 
+                        ? (_isDockEditing ? Colors.white.withOpacity(0.2) : Colors.white.withOpacity(0.1))
+                        : (_isDockEditing ? Colors.black.withOpacity(0.2) : Colors.black.withOpacity(0.1)),
                     width: 1.5
                   ),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 30, offset: const Offset(0, 10)),
+                    BoxShadow(
+                      color: theme.brightness == Brightness.dark 
+                          ? Colors.black.withOpacity(0.4) 
+                          : Colors.grey.withOpacity(0.3), 
+                      blurRadius: 30, 
+                      offset: const Offset(0, 10))
                   ],
                 ),
                 child: ClipRRect(
@@ -190,7 +192,7 @@ class _MainScaffoldState extends State<MainScaffold> {
             provider.changeView(id);
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
             child: AnimatedScale(
               scale: isSelected ? 1.3 : 1.0,
               curve: Curves.elasticOut,
@@ -199,7 +201,13 @@ class _MainScaffoldState extends State<MainScaffold> {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(icon, color: isSelected ? Colors.white : Colors.white.withOpacity(0.4), size: 28),
+                  Icon(
+                    icon, 
+                    color: isSelected 
+                        ? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black) 
+                        : (Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.4) : Colors.black.withOpacity(0.4)), 
+                    size: 28
+                  ),
                     if (isSelected)
                       Container(
                         margin: const EdgeInsets.only(top: 4),
@@ -242,11 +250,11 @@ class _MainScaffoldState extends State<MainScaffold> {
               Container(
                 width: 50, height: 50,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1)),
                 ),
-                child: Icon(icon, color: Colors.white, size: 24),
+                child: Icon(icon, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black, size: 24),
               ),
               Positioned(
                 top: -5,

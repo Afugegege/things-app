@@ -15,13 +15,28 @@ class ExpenseSummaryWidget extends StatelessWidget {
         .where((t) => (t['amount'] as double) < 0)
         .fold(0.0, (sum, t) => sum + (t['amount'] as double));
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       height: 140, 
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: BoxDecoration(
-        color: const Color(0xFF121212), // Matte Black
+        color: isDark ? Theme.of(context).cardColor : Colors.white,
+        gradient: isDark ? null : LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFFE53935), // Red
+            const Color(0xFFE35D5B), // Lighter red
+          ],
+        ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white12), // Subtle border
+        border: isDark 
+            ? Border.all(color: Colors.white24, width: 2.0) 
+            : Border.all(color: const Color(0xFFE53935).withOpacity(0.1), width: 2.0), // Subtle red border
+        boxShadow: isDark ? [] : [
+          BoxShadow(color: const Color(0xFFE53935).withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 6))
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

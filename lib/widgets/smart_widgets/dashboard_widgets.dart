@@ -17,30 +17,52 @@ class StickerWidget extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final color = theme.textTheme.bodyLarge?.color ?? Colors.black;
     
+    Color bgColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    Color contentColor = Colors.amber; // Default vibrant color for stickers
+    Color textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    
+    if (note.backgroundColor != null && note.backgroundColor != 0) {
+      bgColor = Color(note.backgroundColor!);
+      // If color is present, assume white content is better usually, or we can check brightness.
+      // For now, let's keep it simple or use the note's color as an accent if meaningful.
+      // Actually, StickerWidget usually sets bg color.
+      contentColor = Colors.white;
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+        color: bgColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.dividerColor, width: 2),
+        border: note.isPinned 
+            ? Border.all(color: textColor.withOpacity(0.8), width: 4.0) 
+            : Border.all(color: note.backgroundColor != null && note.backgroundColor != 0 ? Colors.transparent : theme.dividerColor, width: 2),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Stack(
         children: [
-          Icon(CupertinoIcons.smiley, size: 48, color: color),
-          const SizedBox(height: 10),
-          Text(
-            note.title.isNotEmpty ? note.title : "Sticker",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+
+          
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.smiley, size: 48, color: contentColor),
+                const SizedBox(height: 10),
+                Text(
+                  note.title.isNotEmpty ? note.title : "Sticker",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: note.backgroundColor != null && note.backgroundColor != 0 ? Colors.white : textColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -69,50 +91,71 @@ class MonitorWidget extends StatelessWidget {
       }
     } catch (_) {}
 
+    Color bgColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    Color contentColor = textColor;
+    Color iconColor = dimmedColor;
+    
+    if (note.backgroundColor != null && note.backgroundColor != 0) {
+      bgColor = Color(note.backgroundColor!);
+      contentColor = Colors.white;
+      iconColor = Colors.white70;
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+        color: bgColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.dividerColor),
+        border: note.isPinned 
+            ? Border.all(color: textColor.withOpacity(0.8), width: 4.0) 
+            : Border.all(color: note.backgroundColor != null && note.backgroundColor != 0 ? Colors.transparent : theme.dividerColor),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(CupertinoIcons.graph_circle, color: textColor, size: 20),
-              Text("TRACKER", style: TextStyle(color: dimmedColor, fontSize: 10, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            note.title.isNotEmpty ? note.title : "Monitor",
-            style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                onPressed: () => _updateValue(context, value - 1),
-                icon: Icon(CupertinoIcons.minus_circle, color: dimmedColor),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Icon(CupertinoIcons.graph_circle, color: contentColor, size: 20),
+                  Row(
+                    children: [
+                      Text("TRACKER", style: TextStyle(color: iconColor, fontSize: 10, fontWeight: FontWeight.bold)),
+
+                    ],
+                  ),
+                ],
               ),
+              const SizedBox(height: 10),
               Text(
-                "$value",
-                style: TextStyle(color: textColor, fontSize: 32, fontWeight: FontWeight.bold),
+                note.title.isNotEmpty ? note.title : "Monitor",
+                style: TextStyle(color: contentColor, fontWeight: FontWeight.bold, fontSize: 14),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              IconButton(
-                onPressed: () => _updateValue(context, value + 1),
-                icon: Icon(CupertinoIcons.plus_circle, color: dimmedColor),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: () => _updateValue(context, value - 1),
+                    icon: Icon(CupertinoIcons.minus_circle, color: iconColor),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  Text(
+                    "$value",
+                    style: TextStyle(color: contentColor, fontSize: 32, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    onPressed: () => _updateValue(context, value + 1),
+                    icon: Icon(CupertinoIcons.plus_circle, color: iconColor),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
               ),
             ],
           ),
@@ -198,12 +241,24 @@ class _TimerWidgetState extends State<TimerWidget> {
     final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
     final dimmedColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
 
+    Color bgColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    Color contentColor = textColor;
+    Color iconColor = dimmedColor;
+    
+    if (widget.note.backgroundColor != null && widget.note.backgroundColor != 0) {
+       bgColor = Color(widget.note.backgroundColor!);
+       contentColor = Colors.white;
+       iconColor = Colors.white70;
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+        color: bgColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.dividerColor),
+        border: widget.note.isPinned 
+            ? Border.all(color: textColor.withOpacity(0.8), width: 4.0) 
+            : Border.all(color: widget.note.backgroundColor != null && widget.note.backgroundColor != 0 ? Colors.transparent : theme.dividerColor),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -211,18 +266,23 @@ class _TimerWidgetState extends State<TimerWidget> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                widget.note.title.isNotEmpty ? widget.note.title : "Timer",
-                style: TextStyle(color: dimmedColor, fontSize: 12, fontWeight: FontWeight.bold),
+              Row(
+                children: [
+                   Text(
+                    widget.note.title.isNotEmpty ? widget.note.title : "Timer",
+                    style: TextStyle(color: iconColor, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+
+                ],
               ),
-              Icon(CupertinoIcons.timer, color: dimmedColor, size: 16),
+              Icon(CupertinoIcons.timer, color: iconColor, size: 16),
             ],
           ),
           const SizedBox(height: 10),
           Text(
             _formattedTime,
             style: TextStyle(
-              color: textColor,
+              color: contentColor,
               fontSize: 40,
               fontWeight: FontWeight.bold,
               fontFeatures: [const FontFeature.tabularFigures()],
@@ -234,13 +294,13 @@ class _TimerWidgetState extends State<TimerWidget> {
             children: [
               IconButton(
                 icon: Icon(_isRunning ? CupertinoIcons.pause_fill : CupertinoIcons.play_arrow_solid),
-                color: textColor, // Monochrome toggle
+                color: contentColor, 
                 iconSize: 32,
                 onPressed: _toggleTimer,
               ),
               IconButton(
                 icon: const Icon(CupertinoIcons.restart),
-                color: dimmedColor,
+                color: iconColor,
                 iconSize: 24,
                 onPressed: _resetTimer,
               ),

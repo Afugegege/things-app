@@ -7,7 +7,7 @@ class AppTheme {
   
   // Standard iOS Backgrounds
   static const Color _darkBackground = Colors.black;
-  static const Color _darkSurface = Color(0xFF1C1C1E);
+  static const Color _darkSurface = Colors.black;
   static const Color _lightBackground = Color(0xFFF2F2F7);
   static const Color _lightSurface = Colors.white;
 

@@ -10,9 +10,7 @@ import 'providers/notes_provider.dart';
 import 'providers/tasks_provider.dart';
 import 'providers/money_provider.dart';
 import 'providers/events_provider.dart';
-import 'providers/roam_provider.dart';
-import 'providers/flashcards_provider.dart';
-import 'providers/bucket_list_provider.dart';
+
 
 import 'services/storage_service.dart';
 import 'screens/auth/login_screen.dart';
@@ -37,17 +35,14 @@ void main() async {
         ChangeNotifierProvider(create: (_) => TasksProvider()),
         ChangeNotifierProvider(create: (_) => MoneyProvider()),
         ChangeNotifierProvider(create: (_) => EventsProvider()),
-        ChangeNotifierProvider(create: (_) => RoamProvider()),
-        ChangeNotifierProvider(create: (_) => FlashcardsProvider()),
-        ChangeNotifierProvider(create: (_) => BucketListProvider()),
       ],
-      child: const LifeOSApp(),
+      child: const ThingsApp(),
     ),
   );
 }
 
-class LifeOSApp extends StatelessWidget {
-  const LifeOSApp({super.key});
+class ThingsApp extends StatelessWidget {
+  const ThingsApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +50,7 @@ class LifeOSApp extends StatelessWidget {
     final userProvider = Provider.of<UserProvider>(context);
 
     return MaterialApp(
-      title: 'LifeOS',
+      title: 'Things',
       debugShowCheckedModeBanner: false,
       
       // DYNAMIC THEME GENERATION

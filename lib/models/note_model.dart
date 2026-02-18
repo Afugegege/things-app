@@ -26,20 +26,48 @@ class Note {
   final bool isFullWidth; 
 
   String get plainTextContent {
-    if (content.isEmpty) return "";
+    return _extractText(content);
+  }
+
+  String _extractText(String rawContent) {
+    if (rawContent.isEmpty) return "";
     try {
-      if (content.trim().startsWith('[') && content.contains('insert')) {
-        final List<dynamic> delta = jsonDecode(content);
-        return delta.map((op) {
-          if (op is Map<String, dynamic> && op.containsKey('insert')) {
-            return op['insert'].toString();
+      String processed = rawContent.trim();
+      // Loop to handle double-encoding (up to 3 levels)
+      for (int i = 0; i < 3; i++) {
+        if (processed.startsWith('[') && processed.contains('insert')) {
+          try {
+            final List<dynamic> delta = jsonDecode(processed);
+            final buffer = StringBuffer();
+            bool hasText = false;
+            for (final op in delta) {
+              if (op is Map && op.containsKey('insert')) {
+                final insert = op['insert'];
+                if (insert is String) {
+                  buffer.write(insert);
+                  hasText = true;
+                }
+              }
+            }
+            if (!hasText) return processed; // Keep original if no text found
+            
+            final result = buffer.toString().trim();
+            // If the result looks like another JSON delta, loop again
+            if (result.startsWith('[') && result.contains('insert')) {
+              processed = result;
+              continue;
+            }
+            return result.isNotEmpty ? result : processed;
+          } catch (_) {
+            break; // Stop decoding on error
           }
-          return "";
-        }).join().trim();
+        } else {
+            break; // Not JSON
+        }
       }
-      return content;
+      return processed;
     } catch (e) {
-      return content;
+      return rawContent;
     }
   }
 

@@ -8,7 +8,7 @@ import 'package:intl/intl.dart';
 import '../../providers/events_provider.dart';
 import '../../models/event_model.dart';
 import '../../widgets/glass_container.dart';
-import '../../widgets/life_app_scaffold.dart'; // [UPDATED]
+import '../../widgets/life_app_scaffold.dart';
 import '../../widgets/dashboard_drawer.dart';
 
 class CalendarScreen extends StatefulWidget {
@@ -342,209 +342,212 @@ class _CalendarScreenState extends State<CalendarScreen> {
           child: Icon(CupertinoIcons.add, color: isDark ? Colors.black : Colors.white, size: 28),
         ),
       ),
-      child: Column(
-        children: [
-          const SizedBox(height: 10),
-
-          // MONTH NAVIGATOR (Styled like Wallet Balance Section)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Column(
               children: [
-                IconButton(icon: Icon(Icons.chevron_left, color: secondaryTextColor), onPressed: _previousMonth),
-                
-                GestureDetector(
-                  onTap: _selectYearMonth,
-                  child: Column(
+                const SizedBox(height: 10),
+
+                // MONTH NAVIGATOR (Styled like Wallet Balance Section)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("CURRENTLY VIEWING", style: TextStyle(color: secondaryTextColor, fontSize: 10, letterSpacing: 2)),
-                      const SizedBox(height: 5),
-                      Text(
-                        DateFormat('MMMM y').format(_focusedDay).toUpperCase(), 
-                        style: TextStyle(color: textColor, fontSize: 24, fontWeight: FontWeight.w300, letterSpacing: -1)
+                      IconButton(icon: Icon(Icons.chevron_left, color: secondaryTextColor), onPressed: _previousMonth),
+                      
+                      GestureDetector(
+                        onTap: _selectYearMonth,
+                        child: Column(
+                          children: [
+                            Text("CURRENTLY VIEWING", style: TextStyle(color: secondaryTextColor, fontSize: 10, letterSpacing: 2)),
+                            const SizedBox(height: 5),
+                            Text(
+                              DateFormat('MMMM y').format(_focusedDay).toUpperCase(), 
+                              style: TextStyle(color: textColor, fontSize: 24, fontWeight: FontWeight.w300, letterSpacing: -1)
+                            ),
+                          ],
+                        ),
                       ),
+
+                      IconButton(icon: Icon(Icons.chevron_right, color: secondaryTextColor), onPressed: _nextMonth),
                     ],
                   ),
                 ),
 
-                Row(
-                  children: [
-                    IconButton(icon: Icon(Icons.chevron_right, color: secondaryTextColor), onPressed: _nextMonth),
-                    const SizedBox(width: 5),
-                    GestureDetector(
-                      onTap: _jumpToToday,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: isDark ? Colors.white10 : Colors.black12, shape: BoxShape.circle),
-                        child: const Icon(CupertinoIcons.today, color: Colors.blueAccent, size: 16),
+                const SizedBox(height: 10),
+
+                // CALENDAR GRID
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  child: GlassContainer(
+                    opacity: isDark ? 0.2 : 0.05, 
+                    padding: const EdgeInsets.fromLTRB(10, 5, 10, 20),
+                    borderRadius: 25,
+                    hasBorder: false,
+                    child: TableCalendar(
+                      firstDay: DateTime.utc(2020, 1, 1),
+                      lastDay: DateTime.utc(2030, 12, 31),
+                      focusedDay: _focusedDay,
+                      calendarFormat: _calendarFormat,
+                      startingDayOfWeek: StartingDayOfWeek.monday,
+                      rowHeight: 50, 
+                      daysOfWeekHeight: 30,
+                      headerVisible: false,
+                      selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                      onDaySelected: (selectedDay, focusedDay) {
+                        setState(() { _selectedDay = selectedDay; _focusedDay = focusedDay; });
+                      },
+                      onFormatChanged: (format) => setState(() => _calendarFormat = format),
+                      onPageChanged: (focusedDay) => _focusedDay = focusedDay,
+                      eventLoader: (day) => eventsProvider.getEventsForDay(day),
+                      
+                      // [THEME] Dynamic Text Styles
+                      daysOfWeekStyle: DaysOfWeekStyle(
+                        weekdayStyle: TextStyle(color: secondaryTextColor, fontSize: 13, fontWeight: FontWeight.bold),
+                        weekendStyle: TextStyle(color: secondaryTextColor, fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                      calendarStyle: CalendarStyle(
+                        defaultTextStyle: TextStyle(color: textColor, fontSize: 16),
+                        weekendTextStyle: TextStyle(color: secondaryTextColor, fontSize: 16),
+                        outsideTextStyle: TextStyle(color: secondaryTextColor.withOpacity(0.3), fontSize: 16),
+                        todayDecoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.3), shape: BoxShape.circle),
+                        selectedDecoration: BoxDecoration(color: isDark ? Colors.white : Colors.black, shape: BoxShape.circle),
+                        selectedTextStyle: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                        markerDecoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
+                        markersMaxCount: 1,
+                        markerSize: 6,
+                        markerMargin: const EdgeInsets.only(top: 8),
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ],
-            ),
-          ),
 
-          const SizedBox(height: 10),
+                const SizedBox(height: 25),
 
-          // CALENDAR GRID
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 15),
-            child: GlassContainer(
-              opacity: isDark ? 0.2 : 0.05, 
-              padding: const EdgeInsets.fromLTRB(10, 5, 10, 20),
-              borderRadius: 25,
-              child: TableCalendar(
-                firstDay: DateTime.utc(2020, 1, 1),
-                lastDay: DateTime.utc(2030, 12, 31),
-                focusedDay: _focusedDay,
-                calendarFormat: _calendarFormat,
-                startingDayOfWeek: StartingDayOfWeek.monday,
-                rowHeight: 50, 
-                daysOfWeekHeight: 30,
-                headerVisible: false,
-                selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                onDaySelected: (selectedDay, focusedDay) {
-                  setState(() { _selectedDay = selectedDay; _focusedDay = focusedDay; });
-                },
-                onFormatChanged: (format) => setState(() => _calendarFormat = format),
-                onPageChanged: (focusedDay) => _focusedDay = focusedDay,
-                eventLoader: (day) => eventsProvider.getEventsForDay(day),
+                // EVENTS LIST HEADER
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
+                  child: Row(
+                    children: [
+                      Text("SCHEDULE", style: TextStyle(color: secondaryTextColor, fontSize: 12, letterSpacing: 2)),
+                      Expanded(child: Divider(color: theme.dividerColor, indent: 15, endIndent: 15)),
+                      GestureDetector(
+                        onTap: _jumpToToday,
+                        child: Text("TODAY", style: TextStyle(color: Theme.of(context).primaryColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                      ),
+                    ],
+                  ),
+                ),
                 
-                // [THEME] Dynamic Text Styles
-                daysOfWeekStyle: DaysOfWeekStyle(
-                  weekdayStyle: TextStyle(color: secondaryTextColor, fontSize: 13, fontWeight: FontWeight.bold),
-                  weekendStyle: TextStyle(color: secondaryTextColor, fontSize: 13, fontWeight: FontWeight.bold),
-                ),
-                calendarStyle: CalendarStyle(
-                  defaultTextStyle: TextStyle(color: textColor, fontSize: 16),
-                  weekendTextStyle: TextStyle(color: secondaryTextColor, fontSize: 16),
-                  outsideTextStyle: TextStyle(color: secondaryTextColor.withOpacity(0.3), fontSize: 16),
-                  todayDecoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.3), shape: BoxShape.circle),
-                  selectedDecoration: BoxDecoration(color: isDark ? Colors.white : Colors.black, shape: BoxShape.circle),
-                  selectedTextStyle: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                  markerDecoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
-                  markersMaxCount: 1,
-                  markerSize: 6,
-                  markerMargin: const EdgeInsets.only(top: 8),
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 25),
-
-          // EVENTS LIST HEADER
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 25),
-            child: Row(
-              children: [
-                Text("SCHEDULE", style: TextStyle(color: secondaryTextColor, fontSize: 12, letterSpacing: 2)),
-                Expanded(child: Divider(color: theme.dividerColor, indent: 15)),
+                const SizedBox(height: 15),
               ],
             ),
           ),
           
-          const SizedBox(height: 15),
+          // EVENTS LIST or EMPTY STATE
+          if (dayEvents.isEmpty) 
+            SliverToBoxAdapter(
+              child: Container(
+                padding: const EdgeInsets.only(top: 50, bottom: 200),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(CupertinoIcons.calendar_badge_plus, size: 40, color: secondaryTextColor.withOpacity(0.3)),
+                      const SizedBox(height: 10),
+                      Text("No events for this day", style: TextStyle(color: secondaryTextColor, fontSize: 14)),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.only(left: 20, right: 20, bottom: 200),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final event = dayEvents[index];
+                    final Color safeColor = event.color; 
 
-          // EVENTS LIST
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: dayEvents.isEmpty 
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(CupertinoIcons.calendar_badge_plus, size: 40, color: secondaryTextColor.withOpacity(0.3)),
-                        const SizedBox(height: 10),
-                        Text("No events for this day", style: TextStyle(color: secondaryTextColor, fontSize: 14)),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 150),
-                    itemCount: dayEvents.length,
-                    itemBuilder: (context, index) {
-                      final event = dayEvents[index];
-                      final Color safeColor = event.color; 
-
-                      return Dismissible(
-                         key: ValueKey(event.id),
-                         direction: DismissDirection.endToStart,
-                         onDismissed: (_) => eventsProvider.removeEvent(event.id),
-                         background: Container(
-                           alignment: Alignment.centerRight, 
-                           padding: const EdgeInsets.only(right: 20), 
-                           child: const Icon(CupertinoIcons.trash, color: Colors.red)
-                         ),
-                         child: GestureDetector(
-                          onTap: () => _showEventEditor(existingEvent: event),
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
-                            ),
-                            child: Row(
-                              children: [
-                                // Left Pill
-                                Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                                  decoration: BoxDecoration(
-                                    color: safeColor.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Text(DateFormat('d').format(event.date), style: TextStyle(color: safeColor, fontWeight: FontWeight.bold, fontSize: 16)),
-                                      Text(DateFormat('MMM').format(event.date).toUpperCase(), style: TextStyle(color: safeColor.withOpacity(0.8), fontSize: 10, fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
+                    return Dismissible(
+                       key: ValueKey(event.id),
+                       direction: DismissDirection.endToStart,
+                       onDismissed: (_) => eventsProvider.removeEvent(event.id),
+                       background: Container(
+                         alignment: Alignment.centerRight, 
+                         padding: const EdgeInsets.only(right: 20), 
+                         child: const Icon(CupertinoIcons.trash, color: Colors.red)
+                       ),
+                       child: GestureDetector(
+                        onTap: () => _showEventEditor(existingEvent: event),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(20),
+                            border: null,
+                          ),
+                          child: Row(
+                            children: [
+                              // Left Pill
+                              Container(
+                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: safeColor.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                const SizedBox(width: 15),
-                                
-                                // Details
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(event.title, style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 16)),
-                                          if (event.isDayCounter) 
-                                            const Icon(CupertinoIcons.sparkles, color: Colors.amber, size: 14)
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Row(
-                                        children: [
-                                          Icon(CupertinoIcons.time, size: 12, color: secondaryTextColor),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            event.isAllDay 
-                                              ? "All Day" 
-                                              : "${DateFormat('h:mm a').format(event.date)} - ${DateFormat('h:mm a').format(event.endTime)}", 
-                                            style: TextStyle(color: secondaryTextColor, fontSize: 12)
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
+                                child: Column(
+                                  children: [
+                                    Text(DateFormat('d').format(event.date), style: TextStyle(color: safeColor, fontWeight: FontWeight.bold, fontSize: 16)),
+                                    Text(DateFormat('MMM').format(event.date).toUpperCase(), style: TextStyle(color: safeColor.withOpacity(0.8), fontSize: 10, fontWeight: FontWeight.bold)),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 15),
+                              
+                              // Details
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(event.title, style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 16)),
+                                        if (event.isDayCounter) 
+                                          const Icon(CupertinoIcons.sparkles, color: Colors.amber, size: 14)
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Icon(CupertinoIcons.time, size: 12, color: secondaryTextColor),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          event.isAllDay 
+                                            ? "All Day" 
+                                            : "${DateFormat('h:mm a').format(event.date)} - ${DateFormat('h:mm a').format(event.endTime)}", 
+                                          style: TextStyle(color: secondaryTextColor, fontSize: 12)
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
+                  childCount: dayEvents.length,
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );

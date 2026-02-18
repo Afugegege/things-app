@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../services/storage_service.dart';
+import '../data/sample_data.dart';
 
 class MoneyProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _transactions = [];
@@ -40,7 +41,10 @@ class MoneyProvider extends ChangeNotifier {
     final loaded = StorageService.loadTransactions();
     if (loaded.isNotEmpty) {
       _transactions = loaded;
-    } 
+    } else {
+      _transactions = SampleData.getSampleTransactions();
+      StorageService.saveTransactions(_transactions);
+    }
     
     // Load Settings
     final settings = StorageService.loadMoneySettings();
@@ -56,10 +60,20 @@ class MoneyProvider extends ChangeNotifier {
       if (settings['accounts'] != null) {
         _accounts = List<Map<String, dynamic>>.from(settings['accounts']);
       }
+    } else {
+       // Load Sample Settings
+       final sample = SampleData.getSampleMoneySettings();
+       _totalSavings = sample['totalSavings'];
+       _isSavingsVisible = sample['isSavingsVisible'];
+       _budgets = Map<String, double>.from(sample['budgets']);
+       _savingsGoals = List<Map<String, dynamic>>.from(sample['goals']);
+       _accounts = List<Map<String, dynamic>>.from(sample['accounts']);
+       
+       StorageService.saveMoneySettings(sample);
     }
-    
     notifyListeners();
   }
+
 
   List<Map<String, dynamic>> get transactions => _transactions;
   List<String> get categories => _categories; 
@@ -206,17 +220,41 @@ class MoneyProvider extends ChangeNotifier {
        return accountsTotal;
     }
 
-    // Fallback to Legacy: Base Savings + Cash Flow
-    final netCashFlow = _transactions.fold(0.0, (sum, item) => sum + (item['amount'] as double));
+    // Fallback to Legacy: Base Savings + Cash Flow (Active Only)
+    final netCashFlow = _transactions
+        .where((t) => t['isFuture'] != true)
+        .fold(0.0, (sum, item) => sum + (item['amount'] as double));
     return _totalSavings + netCashFlow;
   }
 
   double get totalIncome {
-    return _transactions.where((t) => (t['amount'] as double) > 0).fold(0.0, (sum, t) => sum + (t['amount'] as double));
+    // Only include past/present transactions
+    return _transactions
+        .where((t) => (t['amount'] as double) > 0 && !(t['isFuture'] == true))
+        .fold(0.0, (sum, t) => sum + (t['amount'] as double));
   }
 
   double get totalExpense {
-    return _transactions.where((t) => (t['amount'] as double) < 0).fold(0.0, (sum, t) => sum + (t['amount'] as double));
+    // Only include past/present transactions
+    return _transactions
+        .where((t) => (t['amount'] as double) < 0 && !(t['isFuture'] == true))
+        .fold(0.0, (sum, t) => sum + (t['amount'] as double));
+  }
+
+  // [NEW] Future Payments
+  List<Map<String, dynamic>> get futureTransactions {
+    final now = DateTime.now();
+    return _transactions.where((t) {
+      // It is future if marked 'isFuture' OR (optional: if date is strictly in future)
+      // For now, rely on explicit 'isFuture' flag set by user or logical date check?
+      // User asked for "checkbox feature". Let's rely on the flag.
+      return t['isFuture'] == true;
+    }).toList();
+  }
+
+  // [NEW] Get Active Transactions (Completed)
+  List<Map<String, dynamic>> get activeTransactions {
+     return _transactions.where((t) => t['isFuture'] != true).toList();
   }
 
   Map<String, double> get spendingByCategory {
@@ -255,7 +293,7 @@ class MoneyProvider extends ChangeNotifier {
     }
   }
 
-  void addTransaction(String title, double amount, String category, {DateTime? date}) {
+  void addTransaction(String title, double amount, String category, {DateTime? date, bool isFuture = false}) {
     // When adding transaction, we might want to update an account?
     // For simplicity, we just track transactions for history/stats, 
     // but we can ask user "Which account?". For now, let's keep them separate 
@@ -265,8 +303,10 @@ class MoneyProvider extends ChangeNotifier {
       'id': const Uuid().v4(),
       'title': title,
       'amount': amount,
-      'date': (date ?? DateTime.now()).toString(),
+      'date': (date ?? DateTime.now()).toString(), // Transaction Date (User Set)
+      'addedDate': DateTime.now().toString(),      // Actual Creation Date (System Set)
       'category': category,
+      'isFuture': isFuture,
     });
     
     // OPTIONAL: Automatically adjust "Cash" or "Bank" if we wanted.
@@ -275,7 +315,7 @@ class MoneyProvider extends ChangeNotifier {
     _save();
   }
 
-  void editTransaction(String id, String title, double amount, String category) {
+  void editTransaction(String id, String title, double amount, String category, {DateTime? date, bool? isFuture}) {
     final index = _transactions.indexWhere((t) => t['id'] == id);
     if (index != -1) {
       _transactions[index] = {
@@ -283,6 +323,34 @@ class MoneyProvider extends ChangeNotifier {
         'title': title,
         'amount': amount,
         'category': category,
+        if (date != null) 'date': date.toString(),
+        if (isFuture != null) 'isFuture': isFuture,
+      };
+      _save();
+    }
+  }
+
+  void markAsPaid(String id) {
+    final index = _transactions.indexWhere((t) => t['id'] == id);
+    if (index != -1) {
+      _transactions[index] = {
+        ..._transactions[index],
+        'isFuture': false,
+        // Make sure date is now? Or keep scheduled date? 
+        // User probably wants it to show as paid now.
+        // But keeping original scheduled date is better for history accuracy if it was "planned for the 15th".
+      };
+      _save();
+    }
+  }
+
+  void togglePin(String id) {
+    final index = _transactions.indexWhere((t) => t['id'] == id);
+    if (index != -1) {
+      final currentPin = _transactions[index]['isPinned'] == true;
+      _transactions[index] = {
+        ..._transactions[index],
+        'isPinned': !currentPin,
       };
       _save();
     }

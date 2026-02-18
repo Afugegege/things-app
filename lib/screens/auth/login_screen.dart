@@ -94,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Icon(CupertinoIcons.checkmark_alt_circle_fill, color: Colors.black, size: 40),
                   ),
                   const SizedBox(height: 20),
-                  const Text("LifeOS", style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                  const Text("Things", style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 2)),
                   const SizedBox(height: 10),
                   const Text("Organize your entire existence.", style: TextStyle(color: secondaryTextColor, fontSize: 14)),
                   const SizedBox(height: 50),

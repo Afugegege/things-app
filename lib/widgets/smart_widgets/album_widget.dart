@@ -19,6 +19,7 @@ class AlbumWidget extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
+          border: note.isPinned ? Border.all(color: Colors.white.withOpacity(0.9), width: 4.0) : null,
           color: Colors.white10,
           image: hasCover ? DecorationImage(image: FileImage(coverImage!), fit: BoxFit.cover) : null,
         ),

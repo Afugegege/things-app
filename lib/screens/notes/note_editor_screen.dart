@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart'; 
@@ -9,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
+import 'package:dart_quill_delta/dart_quill_delta.dart' as dqd;
 import 'package:flutter_quill_extensions/flutter_quill_extensions.dart'; 
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -21,6 +24,7 @@ import '../../providers/user_provider.dart';
 import '../../widgets/glass_container.dart';
 import '../../widgets/smart_button.dart';
 import '../../widgets/ai_agent_sheet.dart';
+import '../../utils/markdown_to_quill.dart'; // [ADDED] Markdown Parser
 
 class NoteEditorScreen extends StatefulWidget {
   final Note? note;
@@ -36,6 +40,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   late quill.QuillController _quillController;
   final FocusNode _editorFocusNode = FocusNode();
   final ScrollController _pageScrollController = ScrollController();
+  final HandSignatureControl _doodleControl = HandSignatureControl();
   
   final PageController _toolbarPageController = PageController();
   int _currentToolbarPage = 0;
@@ -49,11 +54,18 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   String? _buttonLink;
   int? _buttonColor;
 
-  final HandSignatureControl _doodleControl = HandSignatureControl();
+  String? _currentNoteId;
+  DateTime? _createdAt;
+  
+  // Auto-Save State
+  Timer? _autoSaveTimer;
+  String? _saveStatus;
 
   @override
   void initState() {
     super.initState();
+    _currentNoteId = widget.note?.id;
+    _createdAt = widget.note?.createdAt;
     _loadNoteData();
     _setupEditor();
 
@@ -69,6 +81,35 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
     // SLASH COMMAND LISTENER
     _quillController.addListener(_checkForSlashCommand);
+    
+    // AUTO-SAVE LISTENER
+    _quillController.changes.listen((event) {
+       if (event.source == quill.ChangeSource.local) {
+         _scheduleAutoSave();
+       }
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoSaveTimer?.cancel();
+    _titleController.dispose();
+    _quillController.dispose();
+    _editorFocusNode.dispose();
+    _pageScrollController.dispose();
+    _toolbarPageController.dispose();
+    _doodleControl.dispose();
+    super.dispose();
+  }
+
+  void _scheduleAutoSave() {
+    if (_saveStatus != "Saving...") {
+       if (_saveStatus == null) {
+          setState(() => _saveStatus = "Saving...");
+       }
+    }
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(seconds: 2), () => _saveNote(false));
   }
 
   void _checkForSlashCommand() {
@@ -101,115 +142,290 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   void _showSlashMenu() {
-    // Remove the slash that triggered this
     final index = _quillController.selection.baseOffset;
     _quillController.replaceText(index - 1, 1, '', null);
+
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.white;
+    final secondaryColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+    final surfaceColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final itemBg = isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03);
 
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) => Container(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
         decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          color: surfaceColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Handle
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 10),
+                width: 36, height: 4,
+                decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
             Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text("Insert Block", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+              child: Row(
+                children: [
+                  Icon(CupertinoIcons.slash_circle, size: 16, color: secondaryColor),
+                  const SizedBox(width: 8),
+                  Text("Insert block", style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 15)),
+                ],
+              ),
             ),
-            ListTile(
-              leading: Icon(Icons.check_box_outlined, color: Colors.blue),
-              title: Text("To-do List"),
-              onTap: () {
-                Navigator.pop(ctx);
-                _quillController.formatSelection(quill.Attribute.unchecked);
-              },
+
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                children: [
+                  // ── BASIC BLOCKS ──
+                  _slashSection("BASIC", secondaryColor),
+                  _slashItem(ctx, CupertinoIcons.textformat_size, "Heading 1", "Big section heading", itemBg, textColor, secondaryColor, () {
+                    _quillController.formatSelection(quill.Attribute.h1);
+                  }),
+                  _slashItem(ctx, CupertinoIcons.textformat, "Heading 2", "Medium section heading", itemBg, textColor, secondaryColor, () {
+                    _quillController.formatSelection(quill.Attribute.h2);
+                  }),
+                  _slashItem(ctx, CupertinoIcons.checkmark_square, "To-do list", "Track tasks with checkboxes", itemBg, textColor, secondaryColor, () {
+                    _quillController.formatSelection(quill.Attribute.unchecked);
+                  }),
+                  _slashItem(ctx, CupertinoIcons.list_bullet, "Bulleted list", "Simple bulleted list", itemBg, textColor, secondaryColor, () {
+                    _quillController.formatSelection(quill.Attribute.ul);
+                  }),
+                  _slashItem(ctx, CupertinoIcons.list_number, "Numbered list", "List with numbers", itemBg, textColor, secondaryColor, () {
+                    _quillController.formatSelection(quill.Attribute.ol);
+                  }),
+                  _slashItem(ctx, CupertinoIcons.text_quote, "Quote", "Capture a quote", itemBg, textColor, secondaryColor, () {
+                    _quillController.formatSelection(quill.Attribute.blockQuote);
+                  }),
+                  _slashItem(ctx, CupertinoIcons.minus, "Divider", "Visual separator", itemBg, textColor, secondaryColor, () {
+                    final idx = _quillController.selection.baseOffset;
+                    _quillController.replaceText(idx, 0, quill.BlockEmbed('divider', 'hr'), null);
+                  }),
+
+                  const SizedBox(height: 12),
+
+                  // ── MEDIA ──
+                  _slashSection("MEDIA", secondaryColor),
+                  _slashItem(ctx, CupertinoIcons.photo, "Image", "Upload or embed an image", itemBg, textColor, secondaryColor, () {
+                    _insertImage();
+                  }),
+
+                  const SizedBox(height: 12),
+
+                  // ── AI ──
+                  _slashSection("AI", secondaryColor),
+                  _slashItem(ctx, CupertinoIcons.sparkles, "Ask AI", "Write, edit, or brainstorm with AI", itemBg, textColor, secondaryColor, () {
+                    _openAIAgent();
+                  }, isAI: true),
+                  _slashItem(ctx, CupertinoIcons.arrow_right_circle, "Continue writing", "Let AI continue from here", itemBg, textColor, secondaryColor, () {
+                    _openAIAgent(initialAction: 'continue');
+                  }, isAI: true),
+                  _slashItem(ctx, CupertinoIcons.doc_plaintext, "Summarize", "Summarize current note", itemBg, textColor, secondaryColor, () {
+                    _openAIAgent(initialAction: 'summarize');
+                  }, isAI: true),
+                  _slashItem(ctx, CupertinoIcons.wand_stars, "Style Note", "Format structure & style", itemBg, textColor, secondaryColor, () {
+                    _openAIAgent(initialAction: 'style');
+                  }, isAI: true),
+                ],
+              ),
             ),
-            ListTile(
-              leading: Icon(Icons.title, color: Colors.orange),
-              title: Text("Heading 1"),
-              onTap: () {
-                Navigator.pop(ctx);
-                _quillController.formatSelection(quill.Attribute.h1);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.format_list_bulleted, color: Colors.purple),
-              title: Text("Bulleted List"),
-              onTap: () {
-                Navigator.pop(ctx);
-                _quillController.formatSelection(quill.Attribute.ul);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.image, color: Colors.green),
-              title: Text("Image"),
-              onTap: () {
-                Navigator.pop(ctx);
-                _insertImage();
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.auto_awesome, color: Colors.pink),
-              title: Text("Ask AI"),
-              onTap: () {
-                Navigator.pop(ctx);
-                _openAIAgent();
-              },
-            ),
-            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  void _openAIAgent() {
+  Widget _slashSection(String label, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 6, top: 4),
+      child: Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+    );
+  }
+
+  Widget _slashItem(BuildContext ctx, IconData icon, String title, String subtitle, Color bg, Color textColor, Color secondaryColor, VoidCallback onTap, {bool isAI = false}) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.pop(ctx);
+        onTap();
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32, height: 32,
+              decoration: BoxDecoration(
+                color: isAI ? textColor.withOpacity(0.08) : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 17, color: isAI ? textColor : textColor.withOpacity(0.6)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w500)),
+                  Text(subtitle, style: TextStyle(color: secondaryColor, fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openAIAgent({String? initialAction}) {
+    // Get selected text if any
+    String? selectedText;
+    final selection = _quillController.selection;
+    if (!selection.isCollapsed) {
+      final plainText = _quillController.document.toPlainText();
+      final start = selection.start.clamp(0, plainText.length);
+      final end = selection.end.clamp(0, plainText.length);
+      if (end > start) {
+        selectedText = plainText.substring(start, end);
+      }
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => AIAgentSheet(
         currentContent: _quillController.document.toPlainText(),
+        selectedText: selectedText,
         onReplaceContent: (text) {
-           _quillController.document.delete(0, _quillController.document.length);
-           _quillController.document.insert(0, text);
-           Navigator.pop(ctx); // Close sheet
+           _quillController.document = markdownToQuill(text);
+           _saveNote(false);
         },
         onInsertContent: (text) {
-           final index = _quillController.selection.baseOffset;
-           _quillController.document.insert(index >= 0 ? index : _quillController.document.length - 1, "\n$text\n");
-           Navigator.pop(ctx); // Close sheet
+           final idx = _quillController.selection.baseOffset;
+           final insertIdx = idx >= 0 ? idx : _quillController.document.length - 1;
+           
+           // Build a delta: retain to cursor, then concat new content
+           final composed = dqd.Delta();
+           if (insertIdx > 0) composed.retain(insertIdx);
+           final newDelta = markdownToQuill("\n$text\n").toDelta();
+           composed.concat(newDelta);
+           
+           _quillController.compose(composed, _quillController.selection, quill.ChangeSource.local);
+           _saveNote(false);
         },
+        onReplaceSelection: selectedText != null ? (text) {
+           final start = selection.start;
+           final length = selection.end - selection.start;
+           
+           // Delete existing selection
+           final deleteDelta = dqd.Delta();
+           if (start > 0) deleteDelta.retain(start);
+           deleteDelta.delete(length);
+           _quillController.compose(deleteDelta, selection, quill.ChangeSource.local);
+           
+           // Insert new content at start
+           final insertDelta = dqd.Delta();
+           if (start > 0) insertDelta.retain(start);
+           insertDelta.concat(markdownToQuill(text).toDelta());
+           _quillController.compose(insertDelta, _quillController.selection, quill.ChangeSource.local);
+           
+           _saveNote(false);
+        } : null,
+        initialAction: initialAction, // [ADDED] Pass action
       ),
     );
   }
 
   void _setupEditor() {
+    if (widget.note?.content == null || widget.note!.content.isEmpty) {
+      _quillController = quill.QuillController.basic();
+      return;
+    }
+
+    String contentToLoad = widget.note!.content;
+
+    // RECURSIVE UNWRAP: Check if the content is "baked" JSON (double-encoded)
+    // Sometimes a note's text is literally the JSON string "[{\"insert\":\"...\"}]"
+    // We try to unwrap this up to 3 times to find the real content.
+    for (int i = 0; i < 3; i++) {
+      try {
+        if (contentToLoad.trim().startsWith('[') && contentToLoad.contains('insert')) {
+          final List<dynamic> json = jsonDecode(contentToLoad);
+          // Check if this is a single-element list containing a JSON string
+          if (json.isNotEmpty && json.length == 1 && json[0] is Map && json[0]['insert'] is String) {
+            final String innerText = json[0]['insert'].trim();
+            if (innerText.startsWith('[') && innerText.contains('"insert"')) {
+              // It looks like JSON! Unwrap it.
+              contentToLoad = innerText;
+              continue;
+            }
+          }
+        }
+      } catch (_) {}
+      break; // Stop if not unwrappable
+    }
+
+    // Now try to load the unwrapped content
     try {
-      if (widget.note?.content != null && widget.note!.content.isNotEmpty) {
-        final List<dynamic> jsonContent = jsonDecode(widget.note!.content);
+      if (contentToLoad.trim().startsWith('[')) {
+        final List<dynamic> jsonContent = jsonDecode(contentToLoad);
+         // Validate newline for Quill
+        if (jsonContent.isNotEmpty) {
+          final lastOp = jsonContent.last;
+          if (lastOp is Map<String, dynamic>) {
+             final insertVal = lastOp['insert'];
+             if (insertVal is String && !insertVal.endsWith('\n')) {
+               jsonContent.last = {'insert': '$insertVal\n'};
+             }
+          }
+        }
         final doc = quill.Document.fromJson(jsonContent);
         _quillController = quill.QuillController(
-          document: doc, 
-          selection: const TextSelection.collapsed(offset: 0)
+          document: doc,
+          selection: const TextSelection.collapsed(offset: 0),
         );
-      } else {
-        _quillController = quill.QuillController.basic();
+        return;
       }
     } catch (e) {
-      final doc = quill.Document();
-      if (widget.note?.content != null) {
-        doc.insert(0, widget.note!.content);
-      }
-      _quillController = quill.QuillController(
-        document: doc, 
-        selection: const TextSelection.collapsed(offset: 0)
-      );
+      debugPrint('Quill parse failed: $e');
     }
+
+    // Fallback: If it STILL looks like JSON code, try to force-extract text 
+    // to avoid showing raw code to the user.
+    String fallbackText = contentToLoad;
+    try {
+       if (fallbackText.trim().startsWith('[')) {
+          final List<dynamic> ops = jsonDecode(fallbackText);
+          final buffer = StringBuffer();
+          for (final op in ops) {
+             if (op is Map && op['insert'] is String) buffer.write(op['insert']);
+          }
+          if (buffer.isNotEmpty) fallbackText = buffer.toString();
+       }
+    } catch (_) {}
+
+    final doc = quill.Document()..insert(0, fallbackText);
+    _quillController = quill.QuillController(
+      document: doc,
+      selection: const TextSelection.collapsed(offset: 0),
+    );
   }
 
   void _loadNoteData() {
@@ -222,34 +438,38 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     _currentThemeId = widget.note?.themeId ?? 'midnight'; 
   }
 
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _quillController.dispose();
-    _editorFocusNode.dispose();
-    _pageScrollController.dispose();
-    _toolbarPageController.dispose();
-    super.dispose();
-  }
 
-  void _saveNote() {
+
+  void _saveNote([bool close = true]) {
+    _autoSaveTimer?.cancel();
     final title = _titleController.text.trim();
     final String plainText = _quillController.document.toPlainText().trim();
     final bool isEmpty = title.isEmpty && plainText.isEmpty && _backgroundImagePath == null;
 
-    if (widget.note == null && isEmpty) {
-      if (mounted) Navigator.pop(context);
+    if (_currentNoteId == null && isEmpty) {
+      if (!close && mounted) setState(() => _saveStatus = null);
+      if (close && mounted) Navigator.pop(context);
       return;
     }
 
     final contentJson = jsonEncode(_quillController.document.toDelta().toJson());
     final notesProvider = Provider.of<NotesProvider>(context, listen: false);
 
+    // Determine ID
+    if (_currentNoteId == null) {
+      _currentNoteId = const Uuid().v4();
+    }
+
+    // Determine CreatedAt
+    if (_createdAt == null) {
+      _createdAt = DateTime.now();
+    }
+
     final noteToSave = Note(
-      id: widget.note?.id ?? const Uuid().v4(),
+      id: _currentNoteId!,
       title: title.isEmpty ? "Untitled" : title,
       content: contentJson, 
-      createdAt: widget.note?.createdAt ?? DateTime.now(),
+      createdAt: _createdAt!,
       updatedAt: DateTime.now(),
       backgroundColor: _backgroundColor?.value,
       backgroundImage: _backgroundImagePath,
@@ -257,16 +477,28 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       buttonLink: _buttonLink,
       buttonColor: _buttonColor,
       themeId: _currentThemeId,
-      folder: widget.note?.folder ?? widget.initialFolder ?? 'All', // Use initialFolder
+      folder: widget.note?.folder ?? widget.initialFolder ?? 'All',
     );
 
-    if (widget.note != null) {
+    // efficient existence check
+    final exists = notesProvider.notes.any((n) => n.id == _currentNoteId);
+
+    if (exists) {
       notesProvider.updateNote(noteToSave);
     } else {
       notesProvider.addNote(noteToSave);
     }
     
-    if (mounted) Navigator.pop(context);
+    if (!close && mounted) {
+       setState(() => _saveStatus = "Saved");
+       Future.delayed(const Duration(seconds: 2), () {
+          if (mounted && _saveStatus == "Saved") {
+             setState(() => _saveStatus = null);
+          }
+       });
+    }
+
+    if (close && mounted) Navigator.pop(context);
   }
 
   // --- THEME LOGIC ---
@@ -304,7 +536,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
     // Determine Text Color based on background
     Color textColor = isDark ? Colors.white : Colors.black;
-    if (_backgroundImagePath != null || _currentThemeId == 'cyber' || _currentThemeId == 'midnight') {
+    if (_backgroundImagePath != null || _currentThemeId == 'cyber') {
       textColor = Colors.white;
     }
     if (_currentThemeId == 'paper') textColor = Colors.black87;
@@ -327,7 +559,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           SafeArea(
             child: Column(
               children: [
-                const SizedBox(height: 60), // Space for Header
+                const SizedBox(height: 100), // Space for Header
                 
                 // Title
                 Padding(
@@ -371,7 +603,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                       autoFocus: false,
                       expands: true,
                       placeholder: "Start typing...",
-                      embedBuilders: FlutterQuillEmbeds.editorBuilders(),
+                      embedBuilders: kIsWeb ? null : FlutterQuillEmbeds.editorBuilders(),
                       customStyles: quill.DefaultStyles(
                         paragraph: quill.DefaultTextBlockStyle(
                           TextStyle(color: textColor.withOpacity(0.9), fontSize: 17, height: 1.6), 
@@ -418,48 +650,48 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                     border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1)))
                   ),
                   child: NavigationToolbar(
-                    leading: CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: Colors.black.withOpacity(0.2), shape: BoxShape.circle),
-                        child: const Icon(CupertinoIcons.back, color: Colors.white, size: 20),
-                      ), 
-                      onPressed: _saveNote
+                    leading: Padding(
+                      padding: const EdgeInsets.only(left: 8.0, right: 8.0),
+                      child: _headerBtn(CupertinoIcons.back, () => _saveNote(), textColor),
                     ),
                     middle: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _headerBtn(CupertinoIcons.arrow_turn_up_left, () => _quillController.undo()),
+                        _headerBtn(CupertinoIcons.arrow_turn_up_left, () => _quillController.undo(), textColor),
                         const SizedBox(width: 8),
-                         _headerBtn(CupertinoIcons.arrow_turn_up_right, () => _quillController.redo()),
+                         _headerBtn(CupertinoIcons.arrow_turn_up_right, () => _quillController.redo(), textColor),
                       ],
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _headerBtn(CupertinoIcons.share, () => Share.share(_quillController.document.toPlainText())),
+                        _headerBtn(CupertinoIcons.share, () => Share.share(_quillController.document.toPlainText()), textColor),
                         const SizedBox(width: 8),
                          // AI Button with Glow and Accent Color
+                        // AI Button - Modern iOS Monochrome Style
                         GestureDetector(
                           onTap: _openAIAgent,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: accentColor.withOpacity(0.2),
+                              color: textColor.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: accentColor.withOpacity(0.5))
+                              border: Border.all(color: textColor.withOpacity(0.12)),
                             ),
                             child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(CupertinoIcons.sparkles, color: accentColor, size: 14),
-                                const SizedBox(width: 4),
-                                Text("AI", style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 12))
+                                Text("AI", style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 13))
                               ],
                             ),
                           ),
                         ),
                         const SizedBox(width: 8),
+                         if (_saveStatus != null)
+                           Padding(
+                             padding: const EdgeInsets.only(right: 12),
+                             child: Text(_saveStatus!, style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 13)),
+                           ),
                          // Save Button covering accent color request
                          CupertinoButton(
                            padding: EdgeInsets.zero,
@@ -504,7 +736,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                     child: PageView(
                       controller: _toolbarPageController,
                       children: [
-                        // FORMATTING DOCK
+                        // FORMATTING DOCK (Page 1: Basic Tools)
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
@@ -520,7 +752,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                             )
                           ],
                         ),
-                        // MEDIA DOCK
+                        // MEDIA DOCK (Page 2: Media & Theme)
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
@@ -530,9 +762,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                             ),
                             // Use Accent Color for main media entry points
                             _mediaBtn(CupertinoIcons.photo, accentColor, _insertImage),
-                            _mediaBtn(CupertinoIcons.paintbrush, Colors.pinkAccent, _openDoodlePad), // Keep distinct
-                            _mediaBtn(CupertinoIcons.link, Colors.orangeAccent, _showSmartButtonDialog),
-                            _mediaBtn(CupertinoIcons.paintbrush_fill, Colors.purpleAccent, _showThemePicker), 
+                            _mediaBtn(CupertinoIcons.paintbrush_fill, accentColor, _showThemePicker), 
                           ],
                         )
                       ],
@@ -549,15 +779,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   // --- NEW WIDGET HELPERS ---
 
-  Widget _headerBtn(IconData icon, VoidCallback onTap) {
+  Widget _headerBtn(IconData icon, VoidCallback onTap, Color color) {
     return CupertinoButton(
       padding: EdgeInsets.zero,
       minSize: 30,
       onPressed: onTap,
       child: Container(
         width: 36, height: 36,
-        decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
-        child: Icon(icon, color: Colors.white, size: 18),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+        child: Icon(icon, color: color, size: 18),
       ),
     );
   }
@@ -587,7 +818,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         child: Icon(
           icon, 
           size: 22, 
-          color: isActive ? accentColor : Colors.black87
+          color: isActive ? accentColor : (Theme.of(context).iconTheme.color ?? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87))
         ),
       ),
     );

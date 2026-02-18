@@ -13,6 +13,7 @@ import 'notes_provider.dart';
 import 'user_provider.dart';
 import 'money_provider.dart';
 import 'tasks_provider.dart'; 
+import '../utils/markdown_to_quill.dart'; // [ADDED] 
 
 class ChatProvider extends ChangeNotifier {
   final List<ChatMessage> _messages = [];
@@ -62,11 +63,8 @@ class ChatProvider extends ChangeNotifier {
     
     // Construct context again
     String contextData = "";
-    if (mode == 'Health (Pulse)') {
-       final healthData = StorageService.loadHealthData();
-       final logs = healthData['logs'] ?? [];
-       final isSleeping = healthData['isSleeping'] ?? false;
-       contextData = "User is currently: ${isSleeping ? 'Sleeping' : 'Awake'}.\nRecent Health Logs: $logs";
+    if (mode == 'Finance') {
+       // contextData = "Recent Transactions: []"; 
     }
 
     try {
@@ -116,9 +114,8 @@ class ChatProvider extends ChangeNotifier {
        cleanText = "AI Action Result"; 
     }
 
-    final String jsonContent = jsonEncode([
-      {'insert': '$cleanText\n'}
-    ]);
+    final delta = markdownToQuill(cleanText).toDelta();
+    final String jsonContent = jsonEncode(delta.toJson());
 
     final newNote = Note(
       id: const Uuid().v4(),
@@ -169,9 +166,8 @@ class ChatProvider extends ChangeNotifier {
             rawContent = command['content'] ?? '';
           }
           
-          final String structuredContent = jsonEncode([
-            {'insert': '$rawContent\n'}
-          ]);
+          final delta = markdownToQuill(rawContent).toDelta();
+          final String structuredContent = jsonEncode(delta.toJson());
 
           notesProvider.addFolder(folderName);
           notesProvider.addNote(Note(
@@ -272,12 +268,7 @@ class ChatProvider extends ChangeNotifier {
 
     String contextData = "";
     
-    if (mode == 'Health (Pulse)') {
-      final healthData = StorageService.loadHealthData();
-      final logs = healthData['logs'] ?? [];
-      final isSleeping = healthData['isSleeping'] ?? false;
-      contextData = "User is currently: ${isSleeping ? 'Sleeping' : 'Awake'}.\nRecent Health Logs: $logs";
-    } else if (mode == 'Finance') {
+    if (mode == 'Finance') {
        // contextData = "Recent Transactions: []"; 
     }
 

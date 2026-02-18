@@ -12,16 +12,16 @@ class EventTicker extends StatelessWidget {
     final days = event.daysLeft;
     final isToday = days <= 0;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isToday 
-              ? [Colors.redAccent.withOpacity(0.4), Colors.orangeAccent.withOpacity(0.2)]
-              : [Colors.blueAccent.withOpacity(0.2), Colors.purpleAccent.withOpacity(0.1)],
-        ),
+        color: isDark ? Theme.of(context).cardColor : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white12),
+        border: isDark 
+            ? Border.all(color: Colors.white24, width: 2.0) 
+            : Border.all(color: isToday ? Colors.redAccent.withOpacity(0.5) : Colors.blueAccent.withOpacity(0.3), width: 2.0),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

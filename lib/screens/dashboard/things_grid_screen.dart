@@ -4,32 +4,29 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
+import 'dart:ui';
 
 import '../../providers/notes_provider.dart';
 import '../../providers/money_provider.dart';
 import '../../providers/tasks_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/events_provider.dart';
-import '../../providers/roam_provider.dart';
 
 import '../../models/note_model.dart';
 import '../../models/task_model.dart';
 import '../../models/event_model.dart';
+
+import '../../services/storage_service.dart';
 
 import '../../widgets/glass_container.dart';
 import '../../widgets/life_app_scaffold.dart';
 import '../notes/note_editor_screen.dart';
 import '../apps/wallet_screen.dart';
 import '../calendar/calendar_screen.dart';
-import '../tools/flashcard_screen.dart';
-import '../tools/bucket_list_screen.dart';
 
 import '../../widgets/smart_widgets/widget_factory.dart';
 import '../../widgets/smart_widgets/expense_widget.dart';
-import '../../widgets/smart_widgets/roam_widget.dart';
 import '../../widgets/smart_widgets/day_counter_widget.dart';
-import '../../widgets/smart_widgets/flashcard_home_widget.dart';
-import '../../widgets/smart_widgets/bucket_list_achieving_widget.dart';
 import '../../widgets/event_ticker.dart'; 
 import 'widget_studio_screen.dart';
 
@@ -45,9 +42,20 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
   bool _isGrid = true;
   bool _isMultiSelect = false;
   final Set<String> _selectedIds = {}; 
-  String _activeFilter = 'All';
+  Set<String> _activeFilters = {'All'}; // Changed to Set
   final TextEditingController _searchController = TextEditingController(); 
   bool _isSearching = false; 
+  final Set<String> _recentlyCompletedIds = {}; 
+
+  @override
+  void initState() {
+    super.initState();
+    // Load persisted filters
+    final saved = StorageService.loadDashboardFilters();
+    if (saved.isNotEmpty) {
+      _activeFilters = saved.toSet();
+    }
+  } 
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +69,6 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
     final tasksProvider = Provider.of<TasksProvider>(context);
     final userProvider = Provider.of<UserProvider>(context);
     final eventsProvider = Provider.of<EventsProvider>(context);
-    final roamProvider = Provider.of<RoamProvider>(context);
 
     final String currentFolder = notesProvider.selectedFolder;
     final bool isFolderView = currentFolder != 'All';
@@ -76,72 +83,96 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
       if (isFolderView) {
         return folderWidgets.contains(key);
       } else {
-        return visibility[key] == true;
+        String lookup = key;
+        if (key == 'Money') lookup = 'Wallet';
+        if (key == 'Tasks') lookup = 'Focus';
+        // Events is 'Events'
+        return visibility[lookup] == true;
       }
     }
 
-    if (isWidgetEnabled('Events') && (_activeFilter == 'All' || _activeFilter == 'Events')) {
-         final activeEvents = eventsProvider.dashboardEvents;
-         if (_activeFilter == 'Events') {
-            allItems.addAll(activeEvents); 
-         } else {
-            if (activeEvents.isNotEmpty) allItems.addAll(activeEvents.take(5));
-         }
-    }
-    
-    if (isWidgetEnabled('Roam') && (_activeFilter == 'All' || _activeFilter == 'Roam')) {
-         if (roamProvider.trips.isNotEmpty) allItems.add(roamProvider.trips.first);
-    }
-    
-    if (isWidgetEnabled('Money') && (_activeFilter == 'All' || _activeFilter == 'Money')) {
-        allItems.add('EXPENSE_WIDGET');
-        allItems.addAll(moneyProvider.transactions.take(2));
-    }
-    
-    if (isWidgetEnabled('Tasks') && (_activeFilter == 'All' || _activeFilter == 'Tasks')) {
-        allItems.addAll(tasksProvider.tasks.where((t) => !t.isDone).take(4));
-    }
-    
-    if (isWidgetEnabled('Flashcards') && (_activeFilter == 'All' || _activeFilter == 'Study')) {
-         allItems.add('FLASHCARD_WIDGET');
-    }
-      
-    if (isWidgetEnabled('Bucket') && _activeFilter == 'All') { 
-       allItems.add('BUCKET_WIDGET');
-    }
+    // --- UNIVERSAL DATA GATHERING ---
+    List<dynamic> pinnedItems = [];
+    List<dynamic> unpinnedItems = [];
 
-    // Notes Logic (Always show notes for the folder, or global filtered notes)
-    // If in Folder View, we ALWAYS show notes for that folder.
-    // If Global, we show notes based on visibility.
-    if ((visibility['Brain'] == true || isFolderView) && (_activeFilter == 'All' || _activeFilter == 'Notes')) {
+    // Helper map to store items by type for later sorting
+    final Map<String, List<dynamic>> unpinnedByType = {
+       'Notes': [],
+       'Events': [],
+       'Money': [],
+       'Tasks': []
+    };
+
+    // 1. NOTES
+    if (visibility['Brain'] == true || isFolderView) {
        final visibleNotes = notesProvider.notes.where((note) {
           if (isFolderView) {
-             // Show if belongs to folder OR is explicitly "pinned" via widget toggles
              return note.folder == currentFolder || folderWidgets.contains(note.id);
           }
-          return userProvider.isFolderVisible(note.folder);
+          return (_activeFilters.contains('All') || _activeFilters.contains('Notes')) && userProvider.isFolderVisible(note.folder);
        }).toList();
-       allItems.addAll(visibleNotes);
+       
+       pinnedItems.addAll(visibleNotes.where((n) => n.isPinned));
+       unpinnedByType['Notes']!.addAll(visibleNotes.where((n) => !n.isPinned));
     }
+
+    // 2. EVENTS
+    if (isWidgetEnabled('Events') && (_activeFilters.contains('All') || _activeFilters.contains('Events'))) {
+         final events = eventsProvider.dashboardEvents;
+         // Separate pinned/unpinned events
+         pinnedItems.addAll(events.where((e) => e.isPinned));
+         unpinnedByType['Events']!.addAll(events.where((e) => !e.isPinned));
+         
+         if (!_activeFilters.contains('Events') && unpinnedByType['Events']!.whereType<Event>().length > 5) {
+             // Basic capping logic if not focused on events
+             // (Simplified for now as per previous block)
+         }
+    }
+
+    // 3. MONEY
+    if (isWidgetEnabled('Money') && (_activeFilters.contains('All') || _activeFilters.contains('Money'))) {
+        unpinnedByType['Money']!.add('EXPENSE_WIDGET'); 
+        
+        final txns = moneyProvider.transactions;
+        pinnedItems.addAll(txns.where((t) => t['isPinned'] == true));
+        unpinnedByType['Money']!.addAll(txns.where((t) => t['isPinned'] != true).take(2));
+    }
+    
+    // 4. TASKS
+    if (isWidgetEnabled('Tasks') && (_activeFilters.contains('All') || _activeFilters.contains('Tasks'))) {
+        final tasks = tasksProvider.tasks.where((t) => !t.isDone || _recentlyCompletedIds.contains(t.id));
+        unpinnedByType['Tasks']!.addAll(tasks.take(4));
+    }
+
+    // COMBINE UNPINNED IN ORDER
+    if (_activeFilters.contains('All') || _activeFilters.isEmpty) {
+       // DEFAULT ORDER for "All"
+       unpinnedItems.addAll(unpinnedByType['Notes']!);
+       unpinnedItems.addAll(unpinnedByType['Events']!);
+       unpinnedItems.addAll(unpinnedByType['Money']!);
+       unpinnedItems.addAll(unpinnedByType['Tasks']!);
+    } else {
+       // RESPECT FILTER ORDER
+       for (var filter in _activeFilters) {
+          if (unpinnedByType.containsKey(filter)) {
+             unpinnedItems.addAll(unpinnedByType[filter]!);
+          }
+       }
+    }
+
+    // COMBINE
+    allItems.addAll(pinnedItems);
+    allItems.addAll(unpinnedItems);
     
     return LifeAppScaffold(
       title: _isMultiSelect ? "${_selectedIds.length} SELECTED" : (isFolderView ? currentFolder.toUpperCase() : "DASHBOARD"),
       onOpenDrawer: () => widget.parentScaffoldKey.currentState?.openDrawer(),
       actions: [
         if (_isMultiSelect)
-          IconButton(icon: const Icon(CupertinoIcons.clear_circled), onPressed: _exitMultiSelect)
+          IconButton(icon: const Icon(CupertinoIcons.clear_circled, color: Colors.redAccent), onPressed: _exitMultiSelect)
         else ...[
           // VISIBILITY FILTER / CUSTOMIZER
-          IconButton(
-            icon: Icon(isFolderView ? CupertinoIcons.slider_horizontal_3 : CupertinoIcons.slider_horizontal_3, color: textColor), // Same icon, different purpose logic
-            onPressed: () {
-               if (isFolderView) {
-                 _showFolderCustomizer(context, currentFolder);
-               } else {
-                 _showVisibilityFilter(context);
-               }
-            },
-          ),
+
           IconButton(
             icon: Icon(_isSearching ? CupertinoIcons.clear : CupertinoIcons.search, color: textColor),
             onPressed: () {
@@ -197,7 +228,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
               IconButton(
                 icon: Icon(CupertinoIcons.pin, color: textColor),
                 onPressed: () {
-                   for (var id in _selectedIds) notesProvider.togglePin(id);
+                   for (var id in _selectedIds) _togglePin(context, id);
                    _exitMultiSelect();
                 }
               ),
@@ -212,32 +243,71 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
               ),
 
               // DELETE BUTTON
-              IconButton(
+               IconButton(
                 icon: Icon(CupertinoIcons.trash, color: textColor), 
                 onPressed: () {
-                  showDialog(
+                  showModalBottomSheet(
                     context: context,
-                    builder: (ctx) => CupertinoAlertDialog(
-                      title: const Text("Delete items?"),
-                      content: const Text("This action cannot be undone."),
-                      actions: [
-                        CupertinoDialogAction(child: const Text("Cancel"), onPressed: () => Navigator.pop(ctx)),
-                        CupertinoDialogAction(
-                          isDestructiveAction: true, 
-                          child: const Text("Delete"), 
-                          onPressed: () {
-                            for (var id in _selectedIds) {
-                               notesProvider.deleteNotes(id);
-                               tasksProvider.deleteTask(id);
-                               eventsProvider.removeEvent(id);
-                               moneyProvider.removeTransactionById(id);
-                            }
-                            Navigator.pop(ctx);
-                            _exitMultiSelect();
-                          }
+                    backgroundColor: theme.cardColor,
+                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                    builder: (ctx) {
+                      final isDark = theme.brightness == Brightness.dark;
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(25, 20, 25, 40),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2))),
+                            const SizedBox(height: 25),
+                            Container(
+                              width: 50, height: 50,
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(CupertinoIcons.trash, color: Colors.redAccent, size: 24),
+                            ),
+                            const SizedBox(height: 15),
+                            Text("Delete ${_selectedIds.length} item${_selectedIds.length > 1 ? 's' : ''}?", style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Text("This action cannot be undone.", style: TextStyle(color: secondaryTextColor, fontSize: 14)),
+                            const SizedBox(height: 25),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: CupertinoButton(
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: Text("Cancel", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                    onPressed: () => Navigator.pop(ctx),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: CupertinoButton(
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    color: Colors.redAccent,
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: const Text("Delete", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                    onPressed: () {
+                                      for (var id in _selectedIds) {
+                                        notesProvider.deleteNotes(id);
+                                        tasksProvider.deleteTask(id);
+                                        eventsProvider.removeEvent(id);
+                                        moneyProvider.removeTransactionById(id);
+                                      }
+                                      Navigator.pop(ctx);
+                                      _exitMultiSelect();
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      ]
-                    )
+                      );
+                    },
                   );
                 }
               ),
@@ -249,50 +319,10 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
           ),
         );
       }()) : null,
-      child: Column(
+      child: Stack(
         children: [
-          const SizedBox(height: 10),
-          if (_isSearching)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-              child: GlassContainer(
-                height: 50,
-                borderRadius: 15,
-                opacity: isDark ? 0.2 : 0.05,
-                child: TextField(
-                  controller: _searchController,
-                  style: TextStyle(color: textColor),
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: "Search...", 
-                    border: InputBorder.none, 
-                    prefixIcon: Icon(CupertinoIcons.search, color: secondaryTextColor, size: 20),
-                    hintStyle: TextStyle(color: secondaryTextColor),
-                    contentPadding: const EdgeInsets.only(top: 12)
-                  ),
-                  onChanged: (v) => setState(() {}),
-                ),
-              ),
-            ),
-          if (!_isMultiSelect && !_isSearching) 
-            SizedBox(
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                children: [
-                  _filterChip("All"),
-                  _filterChip("Notes"),
-                  _filterChip("Tasks"),
-                  _filterChip("Money"),
-                  _filterChip("Events"),
-                  _filterChip("Roam"), 
-                  _filterChip("Study"),
-                ],
-              ),
-            ),
-
-          Expanded(
+          // 1. CONTENT LAYER
+          Positioned.fill(
             child: allItems.isEmpty
                 ? Center(
                     child: Column(
@@ -308,7 +338,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
                   )
                 : _isGrid 
                     ? SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(15, 20, 15, 120),
+                        padding: const EdgeInsets.fromLTRB(15, 80, 15, 240),
                         child: StaggeredGrid.count(
                           crossAxisCount: 2,
                           mainAxisSpacing: 8,
@@ -323,7 +353,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
                         ),
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(15, 20, 15, 120),
+                        padding: const EdgeInsets.fromLTRB(15, 80, 15, 240),
                         itemCount: allItems.length,
                         itemBuilder: (context, index) => Padding(
                           padding: const EdgeInsets.only(bottom: 8),
@@ -331,9 +361,127 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
                         ),
                       ),
           ),
+
+          // 2. HEADER LAYER (Blur + Gradient)
+          if (!_isMultiSelect)
+            Positioned(
+              top: 0, left: 0, right: 0,
+              child: ShaderMask(
+                shaderCallback: (Rect bounds) {
+                  return const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.black, Colors.black, Colors.transparent],
+                    stops: [0.0, 0.7, 1.0],
+                  ).createShader(bounds);
+                },
+                blendMode: BlendMode.dstIn,
+                child: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.only(bottom: 40, top: 10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            theme.scaffoldBackgroundColor,
+                            theme.scaffoldBackgroundColor.withOpacity(0.0), 
+                          ],
+                          stops: const [0.6, 1.0],
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_isSearching)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                              child: GlassContainer(
+                                height: 50,
+                                borderRadius: 15,
+                                opacity: isDark ? 0.2 : 0.05,
+                                child: TextField(
+                                  controller: _searchController,
+                                  style: TextStyle(color: textColor),
+                                  autofocus: true,
+                                  decoration: InputDecoration(
+                                    hintText: "Search...", 
+                                    border: InputBorder.none, 
+                                    prefixIcon: Icon(CupertinoIcons.search, color: secondaryTextColor, size: 20),
+                                    hintStyle: TextStyle(color: secondaryTextColor),
+                                    contentPadding: const EdgeInsets.only(top: 12)
+                                  ),
+                                  onChanged: (v) => setState(() {}),
+                                ),
+                              ),
+                            ),
+                          if (!_isSearching) 
+                            SizedBox(
+                              height: 40,
+                              child: Center(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: () {
+                                      // Default order
+                                      List<String> allFilters = ["All", "Notes", "Tasks", "Money", "Events"];
+                                      
+                                      if (_activeFilters.contains('All')) {
+                                        // Standard order if "All" is selected
+                                        return allFilters.map((f) => _filterChip(f)).toList();
+                                      } else {
+                                        // Custom order: Selected filters first (in order of selection), then others
+                                        List<String> orderedData = [];
+                                        
+                                        // 1. Add currently selected filters in their selection order (preserved by LinkedHashSet/standard Set behavior in Dart)
+                                        for (var f in _activeFilters) {
+                                           if (allFilters.contains(f)) orderedData.add(f);
+                                        }
+                                        
+                                        // 2. Add remaining unselected filters
+                                        for (var f in allFilters) {
+                                           if (!orderedData.contains(f)) orderedData.add(f);
+                                        }
+                                        
+                                        return orderedData.map((f) => _filterChip(f)).toList();
+                                      }
+                                    }(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
+  }
+
+
+  
+  void _togglePin(BuildContext context, String id) {
+     // Identify type and call provider
+     final notesProvider = Provider.of<NotesProvider>(context, listen: false);
+     final eventsProvider = Provider.of<EventsProvider>(context, listen: false);
+     final moneyProvider = Provider.of<MoneyProvider>(context, listen: false);
+
+     if (notesProvider.notes.any((n) => n.id == id)) {
+        notesProvider.togglePin(id);
+     } else if (eventsProvider.events.any((e) => e.id == id)) {
+        eventsProvider.togglePin(id);
+     } else if (moneyProvider.transactions.any((t) => t['id'] == id)) {
+        moneyProvider.togglePin(id);
+     }
   }
 
   // --- ITEM RENDERING ---
@@ -346,7 +494,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
 
     final bool isSelected = id != null && _selectedIds.contains(id);
     
-    return GestureDetector(
+    final child = GestureDetector(
       onTap: () {
         if (_isMultiSelect && id != null) {
           _toggleSelection(id);
@@ -360,10 +508,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
             _showTransactionEditor(context, Map<String, dynamic>.from(item)); 
           } else if (item == 'EXPENSE_WIDGET') {
             Provider.of<UserProvider>(context, listen: false).changeView('wallet');
-          } else if (item == 'FLASHCARD_WIDGET') {
-            Provider.of<UserProvider>(context, listen: false).changeView('flashcards');
-          } else if (item == 'BUCKET_WIDGET') {
-            Provider.of<UserProvider>(context, listen: false).changeView('bucket');
+
           }
         }
       },
@@ -371,7 +516,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
         if (id != null) {
           setState(() { 
             _isMultiSelect = true; 
-            _selectedIds.add(id!); // FIX: Added ! to fix compilation error 
+            _selectedIds.add(id!); 
           });
         }
       },
@@ -381,7 +526,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
         child: Stack(
           children: [
             AbsorbPointer(
-              absorbing: true, 
+              absorbing: _isMultiSelect, 
               child: _buildGridItem(context, item),
             ),
             if (isSelected)
@@ -401,6 +546,40 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
         ),
       ),
     );
+
+    if (item is Task && id != null) {
+      return Dismissible(
+        key: Key("task_$id"),
+        direction: DismissDirection.endToStart,
+        dismissThresholds: const {DismissDirection.endToStart: 0.2},
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          decoration: BoxDecoration(
+            color: Colors.green,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Icon(CupertinoIcons.checkmark_alt, color: Colors.white, size: 28),
+        ),
+        onDismissed: (_) {
+           Provider.of<TasksProvider>(context, listen: false).toggleTask(id!);
+           ScaffoldMessenger.of(context).clearSnackBars();
+           ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(
+               content: const Text("Task Completed"), 
+               backgroundColor: Colors.green,
+               duration: const Duration(milliseconds: 1500),
+               action: SnackBarAction(label: "UNDO", textColor: Colors.white, onPressed: () {
+                 Provider.of<TasksProvider>(context, listen: false).toggleTask(id!);
+               }),
+             )
+           );
+        },
+        child: child,
+      );
+    }
+
+    return child;
   }
 
   Widget _buildGridItem(BuildContext context, dynamic item) {
@@ -408,12 +587,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
     if (item is Note) return WidgetFactory.build(context, item);
     if (item is Task) return _buildTaskCard(item);
     if (item is Event) return item.isDayCounter ? DayCounterWidget(event: item) : EventTicker(event: item);
-    if (item is Map) {
-      if (item.containsKey('distance_km')) return RoamWidget(trip: Map<String, dynamic>.from(item));
-      return _buildMoneyCard(Map<String, dynamic>.from(item));
-    }
-    if (item == 'FLASHCARD_WIDGET') return const FlashcardHomeWidget();
-    if (item == 'BUCKET_WIDGET') return const BucketListAchievingWidget();
+    if (item is Map) return _buildMoneyCard(Map<String, dynamic>.from(item));
     return const SizedBox();
   }
   
@@ -421,35 +595,73 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
-    final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+    
+    // [THEME] Match other widgets (Black/Transparent look with border)
+    Color cardColor = isDark ? theme.cardColor : Colors.white;
     
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(20), 
-        border: Border.all(color: isDark ? Colors.white10 : Colors.black12)
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16), 
+        // [THEME] Wider, more visible border
+        border: isDark ? Border.all(color: Colors.white24, width: 2.0) : Border.all(color: theme.dividerColor, width: 2.0)
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start, 
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-            children: [
-              Container(width: 12, height: 12, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: textColor, width: 2))),
-              if (task.priority > 1) Icon(CupertinoIcons.exclamationmark_circle, size: 14, color: textColor),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            task.title, 
-            style: TextStyle(color: textColor, fontWeight: FontWeight.bold), 
-            maxLines: 2, 
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+            // [INTERACTION] Toggle locally tracked "Recent Complete"
+            setState(() {
+              if (!task.isDone) {
+                  _recentlyCompletedIds.add(task.id);
+              } else {
+                  _recentlyCompletedIds.remove(task.id); 
+              }
+            });
+            Provider.of<TasksProvider>(context, listen: false).toggleTask(task.id);
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, 
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+              children: [
+                // Checkbox Visual
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: Container(
+                    width: 24, height: 24, 
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle, 
+                      border: Border.all(
+                        color: task.priority == 3 ? Colors.redAccent : (task.priority == 2 ? Colors.orangeAccent : textColor), 
+                        width: 2
+                      ),
+                      color: Colors.transparent 
+                    ),
+                    child: task.isDone 
+                        ? Icon(Icons.check, size: 16, color: textColor) 
+                        : null,
+                  ),
+                ),
+                if (task.priority > 1) Icon(CupertinoIcons.exclamationmark_circle, size: 16, color: task.priority == 3 ? Colors.redAccent : Colors.orangeAccent),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              task.title, 
+              style: TextStyle(
+                color: textColor.withOpacity(task.isDone ? 0.5 : 1.0), 
+                fontWeight: FontWeight.bold,
+                decoration: task.isDone ? TextDecoration.lineThrough : null,
+              ), 
+              maxLines: 2, 
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -460,20 +672,23 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
     
+    final Color accentColor = isExp ? Colors.redAccent : Colors.greenAccent;
+    final Color cardBg = isDark ? theme.cardColor : Colors.white;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDark ? Colors.white10 : Colors.black12)
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: isDark ? Border.all(color: Colors.white24, width: 2.0) : Border.all(color: accentColor.withOpacity(0.3), width: 2.0)
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center, 
         crossAxisAlignment: CrossAxisAlignment.start, 
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(isExp ? CupertinoIcons.arrow_down_right : CupertinoIcons.arrow_up_right, color: textColor, size: 18),
+          Icon(isExp ? CupertinoIcons.arrow_down_right : CupertinoIcons.arrow_up_right, color: accentColor, size: 18),
           const SizedBox(height: 5),
           Text(
             tx['title'], 
@@ -506,12 +721,31 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
   }
 
   Widget _filterChip(String label) {
-    final bool isSelected = _activeFilter == label;
+    final bool isSelected = _activeFilters.contains(label);
     final theme = Theme.of(context);
     final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
 
     return GestureDetector(
-      onTap: () => setState(() => _activeFilter = label),
+      onTap: () {
+        setState(() {
+          if (label == 'All') {
+             _activeFilters = {'All'};
+          } else {
+             if (_activeFilters.contains('All')) {
+               _activeFilters.remove('All');
+               _activeFilters.add(label);
+             } else {
+               if (_activeFilters.contains(label)) {
+                 _activeFilters.remove(label);
+                 if (_activeFilters.isEmpty) _activeFilters.add('All');
+               } else {
+                 _activeFilters.add(label);
+               }
+             }
+          }
+          StorageService.saveDashboardFilters(_activeFilters.toList());
+        });
+      },
       child: Container(
         margin: const EdgeInsets.only(right: 10),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -916,41 +1150,32 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
                 const SizedBox(height: 25),
                 Expanded(
                   child: GridView.count(
-                    crossAxisCount: 3, mainAxisSpacing: 25, crossAxisSpacing: 25,
-                    childAspectRatio: 1.1, 
+                    crossAxisCount: 4, mainAxisSpacing: 25, crossAxisSpacing: 15,
                     children: [
-                      _quickAddOption(CupertinoIcons.doc_text, "Note", Provider.of<UserProvider>(context).accentColor, () { 
+                      _quickAddOption(context, CupertinoIcons.sparkles, "AI Assist", textColor, () { 
+                        Navigator.pop(ctx); 
+                        Provider.of<UserProvider>(context, listen: false).changeView('ai');
+                      }),
+                      _quickAddOption(context, CupertinoIcons.doc_text, "Note", textColor, () { 
                         Navigator.pop(ctx); 
                         Navigator.push(context, MaterialPageRoute(builder: (_) => NoteEditorScreen(initialFolder: isFolderView ? currentFolder : null))); 
                       }),
-                      _quickAddOption(CupertinoIcons.check_mark_circled, "Task", Colors.greenAccent, () { 
+                      _quickAddOption(context, CupertinoIcons.check_mark_circled, "Task", textColor, () { 
                         Navigator.pop(ctx); 
                         _showTaskCreator(context); 
                       }),
-                      _quickAddOption(CupertinoIcons.calendar, "Event", Colors.orangeAccent, () { 
-                        Navigator.pop(ctx); 
-                        _showEventEditor(context, Event(id: const Uuid().v4(), title: "", date: DateTime.now(), endTime: DateTime.now().add(const Duration(hours: 1)), location: "", isAllDay: false, isDayCounter: false, color: Colors.blue)); 
-                      }),
-                      _quickAddOption(CupertinoIcons.sparkles, "Day Counter", Colors.pinkAccent, () { 
-                        Navigator.pop(ctx); 
-                        _showEventEditor(context, Event(id: const Uuid().v4(), title: "", date: DateTime.now(), endTime: DateTime.now(), location: "", isAllDay: true, isDayCounter: true, color: Colors.amber)); 
-                      }),
-                      _quickAddOption(CupertinoIcons.money_dollar, "Expense", Colors.redAccent, () { 
+                      _quickAddOption(context, CupertinoIcons.money_dollar, "Expense", textColor, () { 
                         Navigator.pop(ctx); 
                         _showTransactionEditor(context, {'title': '', 'amount': 0.0}); 
                       }),
-                      _quickAddOption(CupertinoIcons.book, "Study", Colors.purpleAccent, () { 
+                      _quickAddOption(context, CupertinoIcons.calendar, "Event", textColor, () { 
                         Navigator.pop(ctx); 
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const FlashCardScreen())); 
+                        _showEventEditor(context, Event(id: const Uuid().v4(), title: "", date: DateTime.now(), endTime: DateTime.now().add(const Duration(hours: 1)), location: "", isAllDay: false, isDayCounter: false, color: Colors.blue)); 
                       }),
-                      // SPECIFIC WIDGETS
-                       _quickAddOption(CupertinoIcons.smiley, "Sticker", Colors.yellow, () => _createWidgetNote(context, "Sticker", 'sticker', Colors.yellow)),
-                       _quickAddOption(CupertinoIcons.quote_bubble, "Quote", Colors.cyanAccent, () => _createWidgetNote(context, "Quote", 'quote', Colors.cyanAccent)),
-                       _quickAddOption(CupertinoIcons.timer, "Timer", Colors.deepOrangeAccent, () => _createWidgetNote(context, "Timer", 'timer', Colors.deepOrangeAccent)),
-                       _quickAddOption(CupertinoIcons.graph_circle, "Monitor", Colors.tealAccent, () => _createWidgetNote(context, "Monitor", 'monitor', Colors.tealAccent)),
-                       // MOVE IN BUTTON
+
+                      // MOVE IN BUTTON
                        if (isFolderView)
-                        _quickAddOption(CupertinoIcons.tray_arrow_down, "Move In", Colors.blueGrey, () => _showMoveInDialog(context)),
+                        _quickAddOption(context, CupertinoIcons.tray_arrow_down, "Move In", textColor, () => _showMoveInDialog(context)),
                     ],
                   ),
                 ),
@@ -985,12 +1210,10 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
                      child: ListView(
                        scrollDirection: Axis.horizontal,
                        children: [
-                          _buildDashboardToggle("Tasks", CupertinoIcons.check_mark_circled, Colors.greenAccent, 'Tasks'),
-                          _buildDashboardToggle("Money", CupertinoIcons.money_dollar, Colors.redAccent, 'Money'),
-                          _buildDashboardToggle("Events", CupertinoIcons.calendar, Colors.orangeAccent, 'Events'),
-                          _buildDashboardToggle("Roam", CupertinoIcons.airplane, Colors.blueAccent, 'Roam'),
-                          _buildDashboardToggle("Bucket", CupertinoIcons.star, Colors.amber, 'Bucket'),
-                          _buildDashboardToggle("Flashcards", CupertinoIcons.bolt_horizontal, Colors.purpleAccent, 'Flashcards'),
+                          _buildDashboardToggle("Tasks", CupertinoIcons.check_mark_circled, textColor, 'Tasks'),
+                          _buildDashboardToggle("Money", CupertinoIcons.money_dollar, textColor, 'Money'),
+                          _buildDashboardToggle("Events", CupertinoIcons.calendar, textColor, 'Events'),
+
                        ],
                      ),
                    )
@@ -1003,7 +1226,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
     );
   }
 
-  Widget _quickAddOption(IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _quickAddOption(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     return GestureDetector(
@@ -1092,12 +1315,10 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
                    Expanded(
                      child: ListView(
                        children: [
-                         _folderWidgetOption("Tasks", CupertinoIcons.check_mark_circled, Colors.greenAccent, enabled.contains('Tasks'), () => provider.toggleFolderWidget(folder, 'Tasks')),
-                         _folderWidgetOption("Events", CupertinoIcons.calendar, Colors.orangeAccent, enabled.contains('Events'), () => provider.toggleFolderWidget(folder, 'Events')),
-                         _folderWidgetOption("Money", CupertinoIcons.money_dollar, Colors.redAccent, enabled.contains('Money'), () => provider.toggleFolderWidget(folder, 'Money')),
-                         _folderWidgetOption("Flashcards", CupertinoIcons.bolt_horizontal, Colors.purpleAccent, enabled.contains('Flashcards'), () => provider.toggleFolderWidget(folder, 'Flashcards')),
-                         _folderWidgetOption("Roam", CupertinoIcons.airplane, Colors.blueAccent, enabled.contains('Roam'), () => provider.toggleFolderWidget(folder, 'Roam')),
-                         _folderWidgetOption("Bucket List", CupertinoIcons.star, Colors.amber, enabled.contains('Bucket'), () => provider.toggleFolderWidget(folder, 'Bucket')),
+                         _folderWidgetOption(context, "Tasks", CupertinoIcons.check_mark_circled, Colors.greenAccent, enabled.contains('Tasks'), () => provider.toggleFolderWidget(folder, 'Tasks')),
+                         _folderWidgetOption(context, "Events", CupertinoIcons.calendar, Colors.orangeAccent, enabled.contains('Events'), () => provider.toggleFolderWidget(folder, 'Events')),
+                         _folderWidgetOption(context, "Money", CupertinoIcons.money_dollar, Colors.redAccent, enabled.contains('Money'), () => provider.toggleFolderWidget(folder, 'Money')),
+
                        ],
                      ),
                    )
@@ -1110,7 +1331,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
     );
   }
 
-  Widget _folderWidgetOption(String label, IconData icon, Color color, bool isEnabled, VoidCallback onTap) {
+  Widget _folderWidgetOption(BuildContext context, String label, IconData icon, Color color, bool isEnabled, VoidCallback onTap) {
      return ListTile(
        leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle), child: Icon(icon, color: color, size: 20)),
        title: Text(label, style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.bold)),
@@ -1139,9 +1360,7 @@ class _ThingsGridScreenState extends State<ThingsGridScreen> {
           'Focus': 'Tasks (Focus)',
           'Wallet': 'Wallet & Money',
           'Events': 'Calendar Events',
-          'Roam': 'Travel (Roam)',
-          'Flashcards': 'Study (Flashcards)',
-          'Bucket': 'Bucket List',
+
         };
 
         return Padding(

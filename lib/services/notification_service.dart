@@ -23,24 +23,31 @@ class NotificationService {
           requestAlertPermission: false,
         );
 
-    const InitializationSettings settings = 
-        InitializationSettings(android: androidSettings, iOS: iosSettings);
+    final initializationSettings = InitializationSettings(
+      android: androidSettings, 
+      iOS: iosSettings
+    );
 
-    await _notifications.initialize(settings);
+    await _notifications.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) async {
+        // Handle action button clicks here if needed beyond just dismissal
+        if (response.actionId == 'dismiss_event') {
+          await _notifications.cancel(response.id ?? 0);
+        }
+      },
+    );
   }
 
   static Future<void> requestPermissions() async {
     if (Platform.isAndroid) {
       // Android 13+ Notification Permission
-      final status = await Permission.notification.request();
-      if (status.isPermanentlyDenied) {
-        openAppSettings();
-      }
+      await _notifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
       
-      // Android 12+ Exact Alarm Permission (Optional but recommended for exact scheduling)
-      final androidPlugin = _notifications.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      await androidPlugin?.requestExactAlarmsPermission();
+      // Android 12+ Exact Alarm
+      await _notifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()?.requestExactAlarmsPermission();
 
     } else if (Platform.isIOS) {
       await _notifications
@@ -79,5 +86,51 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
     );
+  }
+
+  // [NEW] persistent event notification
+  static Future<void> scheduleEventNotification({
+    required int id,
+    required String title,
+    required String location,
+    required DateTime scheduledTime,
+  }) async {
+    await _notifications.zonedSchedule(
+      id,
+      title,
+      location.isNotEmpty ? "At $location" : "Happening now!",
+      tz.TZDateTime.from(scheduledTime, tz.local),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'event_channel',
+          'Event Reminders',
+          channelDescription: 'Persistent notifications for events',
+          importance: Importance.max,
+          priority: Priority.high,
+          ongoing: true, // Makes it persistent (cant be swiped away easily)
+          autoCancel: false, // Tapping doesnt dismiss
+          actions: [
+            AndroidNotificationAction(
+              'dismiss_event', 
+              'End',
+              showsUserInterface: false,
+              cancelNotification: true, // Clicking this specific button cancels it
+            ),
+          ],
+        ),
+        iOS: DarwinNotificationDetails(
+          categoryIdentifier: 'event_category', 
+           // iOS handles actions via categories, simpler setup for now:
+           presentAlert: true,
+           presentSound: true,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
+  static Future<void> cancelNotification(int id) async {
+    await _notifications.cancel(id);
   }
 }

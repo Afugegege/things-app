@@ -11,6 +11,7 @@ class Event {
   final DateTime endTime;
   final bool isAllDay;
   final bool isDayCounter; // [NEW] Flag for Dashboard Counters
+  final bool isPinned;
   final EventType type;
   final Color color; 
 
@@ -23,6 +24,7 @@ class Event {
     required this.endTime,
     this.isAllDay = false,
     this.isDayCounter = false,
+    this.isPinned = false,
     this.type = EventType.personal,
     this.color = Colors.blueAccent, 
   });
@@ -36,6 +38,7 @@ class Event {
     'endTime': endTime.toIso8601String(),
     'isAllDay': isAllDay,
     'isDayCounter': isDayCounter,
+    'isPinned': isPinned,
     'type': type.toString().split('.').last,
     'color': color.value, 
   };
@@ -52,11 +55,40 @@ class Event {
           : DateTime.parse(json['date']).add(const Duration(hours: 1)),
       isAllDay: json['isAllDay'] ?? false,
       isDayCounter: json['isDayCounter'] ?? false,
+      isPinned: json['isPinned'] ?? false,
       type: EventType.values.firstWhere(
         (e) => e.toString().split('.').last == json['type'],
         orElse: () => EventType.personal,
       ),
       color: json['color'] != null ? Color(json['color']) : Colors.blueAccent,
+    );
+  }
+
+  Event copyWith({
+    String? id,
+    String? title,
+    String? description,
+    String? location,
+    DateTime? date,
+    DateTime? endTime,
+    bool? isAllDay,
+    bool? isDayCounter,
+    bool? isPinned,
+    EventType? type,
+    Color? color,
+  }) {
+    return Event(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      location: location ?? this.location,
+      date: date ?? this.date,
+      endTime: endTime ?? this.endTime,
+      isAllDay: isAllDay ?? this.isAllDay,
+      isDayCounter: isDayCounter ?? this.isDayCounter,
+      isPinned: isPinned ?? this.isPinned,
+      type: type ?? this.type,
+      color: color ?? this.color,
     );
   }
 

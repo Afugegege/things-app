@@ -25,27 +25,20 @@ class DayCounterWidget extends StatelessWidget {
       labelText = "DAYS AGO";
     }
 
-    return GlassContainer(
-      height: 160, 
-      borderRadius: 24,
-      padding: EdgeInsets.zero,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      height: 160,
+      decoration: BoxDecoration(
+        color: isDark ? Theme.of(context).cardColor : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: isDark 
+            ? Border.all(color: Colors.white24, width: 2.0) 
+            : Border.all(color: event.color.withOpacity(0.3), width: 2.0),
+      ),
       child: Stack(
         children: [
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    event.color.withOpacity(0.2),
-                    event.color.withOpacity(0.05),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-          ),
+          // Removed muddy gradient overlay
           
           Padding(
             padding: const EdgeInsets.all(20),

@@ -147,4 +147,13 @@ class StorageService {
       return {};
     }
   }
+
+  // --- DASHBOARD FILTERS ---
+  static const String _dashboardFiltersKey = 'dashboard_filters';
+  static Future<void> saveDashboardFilters(List<String> filters) async {
+    await _prefs.setStringList(_dashboardFiltersKey, filters);
+  }
+  static List<String> loadDashboardFilters() {
+    return _prefs.getStringList(_dashboardFiltersKey) ?? ['All'];
+  }
 }

@@ -174,7 +174,7 @@ class _BrainScreenState extends State<BrainScreen> {
             child: displayedNotes.isEmpty
                 ? Center(child: Text("No thoughts found.", style: TextStyle(color: secondaryTextColor)))
                 : MasonryGridView.count(
-                    padding: const EdgeInsets.fromLTRB(15, 0, 15, 100),
+                    padding: const EdgeInsets.fromLTRB(15, 0, 15, 180),
                     crossAxisCount: 2,
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,

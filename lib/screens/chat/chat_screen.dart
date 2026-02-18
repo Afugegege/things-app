@@ -9,6 +9,8 @@ import '../../providers/user_provider.dart';
 import '../../providers/notes_provider.dart';
 import '../../providers/tasks_provider.dart'; 
 import '../../models/chat_model.dart';
+import '../../models/note_model.dart'; // <--- Added
+import '../notes/note_editor_screen.dart'; // <--- Added
 import '../../widgets/glass_container.dart';
 import '../../widgets/chat_preview_card.dart';
 import '../../utils/json_cleaner.dart';
@@ -96,7 +98,8 @@ class _ChatScreenState extends State<ChatScreen> {
   void _handleSend() async {
     if (_controller.text.trim().isEmpty) return;
     
-    final text = _controller.text;
+    // [FIX] Trim the text to prevent extra newlines/whitespace in the bubble
+    final text = _controller.text.trim();
     _controller.clear();
     setState(() {
       _showSuggestions = false;
@@ -225,11 +228,52 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     if (status == 'success') {
-      String title = data['title'] ?? 'Item';
-      if (data['action'] == 'save_note' && data['content'] is Map) {
-         title = data['content']['title'] ?? title;
+      // For Note actions, show the full card as a "Success Preview"
+      if (data['action'] == 'create_note' || data['action'] == 'save_note') {
+        // Ensure data fields are set for the preview
+         if (data['content'] is Map) {
+            data['title'] = data['content']['title'];
+            data['content'] = data['content']['body'];
+         }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+               const Icon(Icons.check_circle, color: Colors.green, size: 20),
+               const SizedBox(width: 8),
+               Text("Note Created Successfully", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
+            ]),
+            ChatPreviewCard(
+              data: data,
+              // Convert "onSave" to "Open"
+              onSave: () {
+                // Navigate to note editor with the new note content
+                // Since we don't have the Note ID here easily (unless backend returns it), 
+                // we'll just open a new editor populated with this content for now, 
+                // or if we had the ID, we'd open that.
+                // Assuming data['result_id'] might exist if we update the backend to return it.
+                // For now, let's just show a snackbar or open editor with this content.
+                final note = Note(
+                  id: 'temp', 
+                  title: data['title'] ?? 'Untitled', 
+                  content: data['content'] ?? '',
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                  folder: 'General'
+                );
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => 
+                   NoteEditorScreen(note: note) // This opens it as a "new draft" unless we have ID
+                ));
+              },
+              onEdit: (_) {}, // No edit on success
+              isSuccess: true, // New flag we'll add to ChatPreviewCard
+            ),
+          ],
+        );
       }
 
+      String title = data['title'] ?? 'Item';
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -266,12 +310,17 @@ class _ChatScreenState extends State<ChatScreen> {
        return ChatPreviewCard(
          data: data,
          onSave: () => Provider.of<ChatProvider>(context, listen: false).executeCommand(msgId, data, context),
-         onEdit: () {
+         onEdit: (instruction) {
            setState(() {
              _isRefining = true;
              _pendingActionId = msgId;
-             _controller.text = "Change title to "; 
-             FocusScope.of(context).requestFocus();
+             if (instruction != null) {
+                _controller.text = instruction;
+                _handleSend();
+             } else {
+                _controller.text = "Change title to "; 
+                FocusScope.of(context).requestFocus();
+             }
            });
          },
        );
@@ -516,31 +565,34 @@ class _ChatScreenState extends State<ChatScreen> {
                    ),
 
                 GlassContainer(
-                  height: 60,
+                  // height: 60, // Removed fixed height
                   borderRadius: 30,
                   blur: 20,
                   opacity: isDark ? 0.15 : 0.05,
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5), // Added vertical padding
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center, 
+                    crossAxisAlignment: CrossAxisAlignment.end, 
                     children: [
                       Expanded(
                         child: TextField(
                           controller: _controller,
                           style: TextStyle(color: textColor),
                           textAlignVertical: TextAlignVertical.center, 
+                          maxLines: 5,
+                          minLines: 1,
+                          keyboardType: TextInputType.multiline,
                           decoration: InputDecoration(
                             hintText: _getHintText(),
                             hintStyle: TextStyle(color: hintColor),
                             border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                             isDense: true, 
                           ),
-                          onSubmitted: (_) => _handleSend(),
+                          // onSubmitted: (_) => _handleSend(), // Multiline usually relies on button 
                         ),
                       ),
                       Container(
-                        margin: const EdgeInsets.only(right: 5),
+                        margin: const EdgeInsets.only(right: 5, bottom: 5),
                         decoration: BoxDecoration(color: accentColor, shape: BoxShape.circle),
                         child: IconButton(
                           icon: Icon(Icons.arrow_upward, color: onAccentColor),

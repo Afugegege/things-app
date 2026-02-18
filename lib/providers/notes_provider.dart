@@ -4,6 +4,8 @@ import 'package:uuid/uuid.dart';
 import '../models/note_model.dart';
 import '../services/storage_service.dart'; 
 
+import '../data/sample_data.dart'; // Import Sample Data
+
 class NotesProvider extends ChangeNotifier {
   List<String> _folders = ['All', 'General', 'Personal', 'Work', 'Ideas', 'Travel'];
   String _selectedFolder = 'All';
@@ -17,6 +19,11 @@ class NotesProvider extends ChangeNotifier {
     final savedNotes = StorageService.loadNotes();
     if (savedNotes.isNotEmpty) {
       _notes = savedNotes;
+    }
+    
+    // Auto-seed sample notes if the notes list is very small
+    if (_notes.length < 2) {
+      seedSampleData();
     }
     // Load folders
     final savedFolders = StorageService.loadFolders();
@@ -54,6 +61,14 @@ class NotesProvider extends ChangeNotifier {
       return b.updatedAt.compareTo(a.updatedAt);
     });
     return filteredNotes;
+  }
+
+  /// Seeds sample demo notes into the app. Adds them to existing notes.
+  void seedSampleData() {
+    final sampleNotes = SampleData.getSampleNotes();
+    _notes.insertAll(0, sampleNotes);
+    StorageService.saveNotes(_notes);
+    notifyListeners();
   }
 
   // --- WIDGET WIDTH TOGGLE ---

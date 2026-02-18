@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
 import '../services/storage_service.dart';
+import '../data/sample_data.dart';
 
 class TasksProvider extends ChangeNotifier {
   List<Task> _tasks = [];
@@ -15,14 +16,19 @@ class TasksProvider extends ChangeNotifier {
     final loaded = StorageService.loadTasks();
     if (loaded.isNotEmpty) {
       _tasks = loaded;
-      // Sort: Not Done first, then by priority (descending)
-      _tasks.sort((a, b) {
-        if (a.isDone != b.isDone) return a.isDone ? 1 : -1;
-        if (a.priority != b.priority) return b.priority.compareTo(a.priority);
-        return 0; // Maintain order otherwise
-      });
-      notifyListeners();
+    } else {
+      // Load Sample Data
+      _tasks = SampleData.getSampleTasks();
+      StorageService.saveTasks(_tasks); // Persist sample data
     }
+
+    // Sort: Not Done first, then by priority (descending)
+    _tasks.sort((a, b) {
+      if (a.isDone != b.isDone) return a.isDone ? 1 : -1;
+      if (a.priority != b.priority) return b.priority.compareTo(a.priority);
+      return 0; // Maintain order otherwise
+    });
+    notifyListeners();
   }
 
   void addTask(Task task) {
@@ -36,12 +42,12 @@ class TasksProvider extends ChangeNotifier {
       final task = _tasks[index];
       _tasks[index] = task.copyWith(isDone: !task.isDone);
       
-      // Auto-sort immediately to move checked items to bottom
-      _tasks.sort((a, b) {
-        if (a.isDone != b.isDone) return a.isDone ? 1 : -1;
-        if (a.priority != b.priority) return b.priority.compareTo(a.priority);
-        return 0; 
-      });
+      // Auto-sort disabled to allow "undo" in Dashboard
+      // _tasks.sort((a, b) {
+      //   if (a.isDone != b.isDone) return a.isDone ? 1 : -1;
+      //   if (a.priority != b.priority) return b.priority.compareTo(a.priority);
+      //   return 0; 
+      // });
       
       _save();
     }

@@ -16,10 +16,7 @@ import '../screens/user/user_profile_screen.dart';
 import '../screens/tasks/tasks_list_screen.dart';
 import '../screens/apps/brain_screen.dart';
 import '../screens/apps/wallet_screen.dart';
-import '../screens/apps/pulse_screen.dart';
-import '../screens/apps/roam_screen.dart';
-import '../screens/tools/flashcard_screen.dart';
-import '../screens/tools/bucket_list_screen.dart';
+
 
 class DashboardDrawer extends StatelessWidget {
   const DashboardDrawer({super.key});
@@ -104,10 +101,8 @@ class DashboardDrawer extends StatelessWidget {
                 _buildMenuItem(context, icon: CupertinoIcons.doc_text, label: "Notes", onTap: () => _navTo(context, userProvider, 'notes')),
                 _buildMenuItem(context, icon: CupertinoIcons.check_mark_circled, label: "Tasks", onTap: () => _navTo(context, userProvider, 'tasks')),
                 _buildMenuItem(context, icon: CupertinoIcons.money_dollar_circle, label: "Finance", onTap: () => _navTo(context, userProvider, 'wallet')),
-                _buildMenuItem(context, icon: CupertinoIcons.heart, label: "Health", onTap: () => _navTo(context, userProvider, 'pulse')),
-                _buildMenuItem(context, icon: CupertinoIcons.airplane, label: "Travel", onTap: () => _navTo(context, userProvider, 'roam')),
-                _buildMenuItem(context, icon: CupertinoIcons.bolt_horizontal_circle, label: "Flashcards", onTap: () => _navTo(context, userProvider, 'flashcards')),
-                _buildMenuItem(context, icon: CupertinoIcons.star_circle, label: "Bucket List", onTap: () => _navTo(context, userProvider, 'bucket')),
+                _buildMenuItem(context, icon: CupertinoIcons.calendar, label: "Calendar", onTap: () => _navTo(context, userProvider, 'calendar')),
+
 
                 const SizedBox(height: 30),
                 
@@ -229,7 +224,7 @@ class DashboardDrawer extends StatelessWidget {
         leading: Icon(
           isSelected ? CupertinoIcons.folder_open : CupertinoIcons.folder, 
           size: 18, 
-          color: isSelected ? Provider.of<UserProvider>(context).accentColor : theme.textTheme.bodyMedium?.color
+          color: isSelected ? (theme.brightness == Brightness.dark ? Provider.of<UserProvider>(context).accentColor : Colors.black) : theme.textTheme.bodyMedium?.color
         ),
         title: Text(folder, style: TextStyle(color: textColor, fontSize: 14, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
         trailing: SizedBox(
@@ -273,55 +268,169 @@ class DashboardDrawer extends StatelessWidget {
   // --- ACTIONS & POPUPS ---
 
   void _showFolderAddOptions(BuildContext context, String folder, NotesProvider provider) {
-    final theme = Theme.of(context);
-    final textColor = theme.textTheme.bodyLarge?.color;
-    
     showModalBottomSheet(
       context: context,
-      backgroundColor: theme.cardColor,
+      backgroundColor: Theme.of(context).cardColor,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => SafeArea(
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2))),
-              const SizedBox(height: 20),
-              Text("ADD TO '$folder'", style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 1.5)),
-              const SizedBox(height: 20),
-              
-              // Option 1: Create Note
-              ListTile(
-                leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.1), shape: BoxShape.circle), child: const Icon(CupertinoIcons.doc_text, color: Colors.blueAccent)),
-                title: const Text("Create Note"),
-                subtitle: const Text("Start writing a new entry"),
-                onTap: () {
-                  Navigator.pop(ctx); // Close Sheet
-                  Navigator.pop(context); // Close Drawer
-                  // Set folder and open editor
-                  provider.selectFolder(folder);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const NoteEditorScreen()));
-                },
-              ),
-              
-              const SizedBox(height: 10),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          final theme = Theme.of(context);
+          final textColor = theme.textTheme.bodyLarge?.color;
+          final secondaryTextColor = theme.textTheme.bodyMedium?.color;
+          
+          final enabledWidgets = provider.getWidgetsForFolder(folder);
+          final myWidgets = provider.notes.where((n) => n.widgetType != null && n.folder != folder).toList();
 
-              // Option 2: Add Widget
-              ListTile(
-                leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.purpleAccent.withOpacity(0.1), shape: BoxShape.circle), child: const Icon(CupertinoIcons.square_grid_2x2, color: Colors.purpleAccent)),
-                title: const Text("Add Widget"),
-                subtitle: const Text("Create a tool or sticker"),
-                onTap: () {
-                  Navigator.pop(ctx); 
-                  _showWidgetTypeSelector(context, folder, provider);
-                },
+          return SafeArea(
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2)))),
+                   const SizedBox(height: 20),
+                   
+                   Text("MANAGE '$folder'", style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 1.5)),
+                   const SizedBox(height: 20),
+
+                   // 1. CREATE NEW
+                   Text("CREATE NEW", style: TextStyle(color: secondaryTextColor, fontSize: 11, fontWeight: FontWeight.bold)),
+                   const SizedBox(height: 10),
+                   Row(
+                     children: [
+                       Expanded(
+                         child: _actionButton(context, "Note", CupertinoIcons.doc_text, textColor!, () {
+                            Navigator.pop(ctx);
+                            Navigator.pop(context);
+                            provider.selectFolder(folder);
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const NoteEditorScreen()));
+                         }),
+                       ),
+                       const SizedBox(width: 10),
+                       Expanded(
+                         child: _actionButton(context, "Widget", CupertinoIcons.square_grid_2x2, textColor!, () {
+                            Navigator.pop(ctx);
+                            _showWidgetTypeSelector(context, folder, provider);
+                         }),
+                       ),
+                     ],
+                   ),
+                   const SizedBox(height: 25),
+
+                   // 2. ENABLE APP FEATURES
+                   Text("APP FEATURES", style: TextStyle(color: secondaryTextColor, fontSize: 11, fontWeight: FontWeight.bold)),
+                   const SizedBox(height: 10),
+                   Wrap(
+                     spacing: 12, runSpacing: 12,
+                     children: [
+                       _toggleButton(context, "Tasks", CupertinoIcons.check_mark_circled, textColor!, enabledWidgets.contains('Tasks'), () {
+                          provider.toggleFolderWidget(folder, 'Tasks');
+                          setState((){});
+                       }),
+                       _toggleButton(context, "Money", CupertinoIcons.money_dollar, textColor!, enabledWidgets.contains('Money'), () {
+                          provider.toggleFolderWidget(folder, 'Money');
+                          setState((){});
+                       }),
+                       _toggleButton(context, "Events", CupertinoIcons.calendar, textColor!, enabledWidgets.contains('Events'), () {
+                          provider.toggleFolderWidget(folder, 'Events');
+                          setState((){});
+                       }),
+                     ],
+                   ),
+                   const SizedBox(height: 25),
+
+                   // 3. ADD EXISTING WIDGETS
+                   if (myWidgets.isNotEmpty) ...[
+                      Text("ADD EXISTING WIDGETS", style: TextStyle(color: secondaryTextColor, fontSize: 11, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 80,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: myWidgets.map((note) => Padding(
+                            padding: const EdgeInsets.only(right: 10),
+                            child: _toggleButton(
+                               context, 
+                               note.title, 
+                               CupertinoIcons.plus_square_fill_on_square_fill, 
+                               textColor!, 
+                               enabledWidgets.contains(note.id), 
+                               () {
+                                  provider.toggleFolderWidget(folder, note.id);
+                                  setState((){});
+                               }
+                            ),
+                          )).toList(),
+                        ),
+                      )
+                   ]
+                ],
               ),
+            ),
+          );
+        }
+      ),
+    );
+  }
+
+  Widget _actionButton(BuildContext context, String label, IconData icon, Color color, VoidCallback onTap) {
+      final theme = Theme.of(context);
+      return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(height: 4),
+              Text(label, style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontWeight: FontWeight.bold, fontSize: 12)) 
             ],
           ),
         ),
-      ),
-    );
+      );
+  }
+
+  Widget _toggleButton(BuildContext context, String label, IconData icon, Color color, bool isSelected, VoidCallback onTap) {
+      final theme = Theme.of(context);
+      final textColor = theme.textTheme.bodyLarge?.color;
+      return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 80,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withOpacity(0.2) : theme.dividerColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: isSelected ? color : Colors.transparent, width: 2),
+          ),
+          child: Column(
+             mainAxisAlignment: MainAxisAlignment.center,
+             children: [
+               Icon(icon, color: isSelected ? color : theme.disabledColor, size: 22),
+               const SizedBox(height: 5),
+               Text(
+                 label, 
+                 style: TextStyle(
+                   color: isSelected ? textColor : theme.disabledColor, 
+                   fontSize: 10, 
+                   fontWeight: FontWeight.bold
+                 ),
+                 textAlign: TextAlign.center,
+                 maxLines: 1,
+                 overflow: TextOverflow.ellipsis,
+               )
+             ],
+          ),
+        ),
+      );
   }
 
   void _showWidgetTypeSelector(BuildContext context, String folder, NotesProvider provider) {
@@ -476,9 +585,7 @@ class DashboardDrawer extends StatelessWidget {
                     _buildWidgetToggle("Tasks", CupertinoIcons.check_mark_circled, Colors.greenAccent, 'Tasks'),
                     _buildWidgetToggle("Money", CupertinoIcons.money_dollar, Colors.redAccent, 'Money'),
                     _buildWidgetToggle("Events", CupertinoIcons.calendar, Colors.orangeAccent, 'Events'),
-                    _buildWidgetToggle("Roam", CupertinoIcons.airplane, Colors.blueAccent, 'Roam'),
-                    _buildWidgetToggle("Flashcards", CupertinoIcons.bolt_horizontal, Colors.purpleAccent, 'Flashcards'),
-                    _buildWidgetToggle("Bucket", CupertinoIcons.star, Colors.amber, 'Bucket'),
+
                   ],
                 ),
 
@@ -513,25 +620,62 @@ class DashboardDrawer extends StatelessWidget {
 
   void _confirmDeleteFolder(BuildContext context, String folder, NotesProvider provider) {
     final theme = Theme.of(context);
-    final textColor = theme.textTheme.bodyLarge?.color;
+    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
+    final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+    final isDark = theme.brightness == Brightness.dark;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: theme.cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Delete Collection?"),
-        content: Text("Are you sure you want to delete '$folder'?\nNotes inside will be moved to 'All'.", style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
-          TextButton(
-            child: const Text("Delete", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-            onPressed: () {
-              provider.deleteFolder(folder);
-              Navigator.pop(ctx);
-            },
-          ),
-        ],
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(25, 20, 25, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 25),
+            Container(
+              width: 50, height: 50,
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(CupertinoIcons.trash, color: Colors.redAccent, size: 24),
+            ),
+            const SizedBox(height: 15),
+            Text("Delete '$folder'?", style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text("Notes inside will be moved to 'All'.", style: TextStyle(color: secondaryTextColor, fontSize: 14)),
+            const SizedBox(height: 25),
+            Row(
+              children: [
+                Expanded(
+                  child: CupertinoButton(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Text("Cancel", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: CupertinoButton(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    color: Colors.redAccent,
+                    borderRadius: BorderRadius.circular(14),
+                    child: const Text("Delete", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      provider.deleteFolder(folder);
+                      Navigator.pop(ctx);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
