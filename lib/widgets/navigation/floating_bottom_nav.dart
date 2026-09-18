@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
-import '../../providers/notes_provider.dart';
 import '../../providers/tasks_provider.dart';
 import '../../providers/money_provider.dart';
 import '../../screens/notes/note_editor_screen.dart';
@@ -24,7 +23,8 @@ class FloatingBottomNav extends StatefulWidget {
   State<FloatingBottomNav> createState() => _FloatingBottomNavState();
 }
 
-class _FloatingBottomNavState extends State<FloatingBottomNav> with SingleTickerProviderStateMixin {
+class _FloatingBottomNavState extends State<FloatingBottomNav>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _expandAnimation;
   late Animation<double> _rotateAnimation;
@@ -33,11 +33,13 @@ class _FloatingBottomNavState extends State<FloatingBottomNav> with SingleTicker
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(duration: const Duration(milliseconds: 400), vsync: this);
-    _expandAnimation = CurvedAnimation(parent: _controller, curve: Curves.elasticOut);
+    _controller = AnimationController(
+        duration: const Duration(milliseconds: 400), vsync: this);
+    _expandAnimation =
+        CurvedAnimation(parent: _controller, curve: Curves.elasticOut);
     _rotateAnimation = Tween<double>(begin: 0.0, end: 0.125).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    ); 
+    );
   }
 
   @override
@@ -58,21 +60,27 @@ class _FloatingBottomNavState extends State<FloatingBottomNav> with SingleTicker
   }
 
   void _handleQuickAction(String action) {
-    _toggleMenu(); 
+    _toggleMenu();
     Future.delayed(const Duration(milliseconds: 200), () {
       switch (action) {
         case "Note":
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const NoteEditorScreen()));
+          Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const NoteEditorScreen()));
           break;
         case "Task":
-          Provider.of<TasksProvider>(context, listen: false).addTask(
-            Task(id: const Uuid().v4(), title: "New Task", isDone: false, createdAt: DateTime.now())
-          );
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("New Task Created")));
+          Provider.of<TasksProvider>(context, listen: false).addTask(Task(
+              id: const Uuid().v4(),
+              title: "New Task",
+              isDone: false,
+              createdAt: DateTime.now()));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text("New Task Created")));
           break;
         case "Spend":
-          Provider.of<MoneyProvider>(context, listen: false).addTransaction("Quick Expense", -10.0, "General");
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Added -\$10 Expense")));
+          Provider.of<MoneyProvider>(context, listen: false)
+              .addTransaction("Quick Expense", -10.0, "General");
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Added -\$10 Expense")));
           break;
       }
     });
@@ -83,15 +91,17 @@ class _FloatingBottomNavState extends State<FloatingBottomNav> with SingleTicker
     // [FIX] Access Dynamic Theme
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     // Determine colors based on theme
     final navBgColor = theme.cardColor.withOpacity(0.6); // Glassy surface
     final borderColor = theme.dividerColor.withOpacity(0.1);
-    final shadowColor = isDark ? Colors.black.withOpacity(0.3) : Colors.grey.withOpacity(0.2);
-    final barrierColor = isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.1);
+    final shadowColor =
+        isDark ? Colors.black.withOpacity(0.3) : Colors.grey.withOpacity(0.2);
+    final barrierColor =
+        isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.1);
 
     return SizedBox(
-      height: 350, 
+      height: 350,
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
@@ -109,7 +119,9 @@ class _FloatingBottomNavState extends State<FloatingBottomNav> with SingleTicker
 
           // --- 2. BOTTOM GRADIENT FADE ---
           Positioned(
-            bottom: 0, left: 0, right: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
             height: 100,
             child: IgnorePointer(
               child: Container(
@@ -133,15 +145,21 @@ class _FloatingBottomNavState extends State<FloatingBottomNav> with SingleTicker
             child: IgnorePointer(
               ignoring: !_isOpen,
               child: SizedBox(
-                width: 300, height: 150,
+                width: 300,
+                height: 150,
                 child: Stack(
                   alignment: Alignment.bottomCenter,
                   children: [
-                    _buildMiniFab(0, "Note", CupertinoIcons.doc_text, Colors.blueAccent, -70),
-                    _buildMiniFab(1, "Task", CupertinoIcons.check_mark, Colors.greenAccent, -35),
-                    _buildMiniFab(2, "Spend", CupertinoIcons.money_dollar, Colors.orangeAccent, 0),
-                    _buildMiniFab(3, "Voice", CupertinoIcons.mic, Colors.purpleAccent, 35),
-                    _buildMiniFab(4, "Photo", CupertinoIcons.camera, Colors.pinkAccent, 70),
+                    _buildMiniFab(0, "Note", CupertinoIcons.doc_text,
+                        isDark ? Colors.white : Colors.black87, -70),
+                    _buildMiniFab(1, "Task", CupertinoIcons.check_mark,
+                        Colors.greenAccent, -35),
+                    _buildMiniFab(2, "Spend", CupertinoIcons.money_dollar,
+                        Colors.orangeAccent, 0),
+                    _buildMiniFab(3, "Voice", CupertinoIcons.mic,
+                        Colors.purpleAccent, 35),
+                    _buildMiniFab(4, "Photo", CupertinoIcons.camera,
+                        Colors.pinkAccent, 70),
                   ],
                 ),
               ),
@@ -165,13 +183,17 @@ class _FloatingBottomNavState extends State<FloatingBottomNav> with SingleTicker
                     borderRadius: BorderRadius.circular(40),
                     border: Border.all(color: borderColor),
                     boxShadow: [
-                      BoxShadow(color: shadowColor, blurRadius: 20, offset: const Offset(0, 10)),
+                      BoxShadow(
+                          color: shadowColor,
+                          blurRadius: 20,
+                          offset: const Offset(0, 10)),
                     ],
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildNavItem(0, CupertinoIcons.square_grid_2x2_fill, theme),
+                      _buildNavItem(
+                          0, CupertinoIcons.square_grid_2x2_fill, theme),
                       _buildNavItem(1, CupertinoIcons.doc_text_fill, theme),
                       const SizedBox(width: 60), // Spacer for FAB
                       _buildNavItem(2, CupertinoIcons.sparkles, theme),
@@ -190,28 +212,31 @@ class _FloatingBottomNavState extends State<FloatingBottomNav> with SingleTicker
               onTap: _toggleMenu,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                width: 60, height: 60,
+                width: 60,
+                height: 60,
                 decoration: BoxDecoration(
                   color: _isOpen ? theme.cardColor : theme.primaryColor,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: (_isOpen ? theme.cardColor : theme.primaryColor).withOpacity(0.4),
-                      blurRadius: 15, offset: const Offset(0, 5),
+                      color: (_isOpen ? theme.cardColor : theme.primaryColor)
+                          .withOpacity(0.4),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
                     )
                   ],
                   border: Border.all(
-                    color: _isOpen ? theme.dividerColor : Colors.white24,
-                    width: 1.5
-                  ),
+                      color: _isOpen ? theme.dividerColor : Colors.white24,
+                      width: 1.5),
                 ),
                 child: RotationTransition(
                   turns: _rotateAnimation,
-                  child: Icon(
-                    CupertinoIcons.add, 
-                    size: 30, 
-                    color: _isOpen ? theme.iconTheme.color : Colors.white // White icon on primary color
-                  ),
+                  child: Icon(CupertinoIcons.add,
+                      size: 30,
+                      color: _isOpen
+                          ? theme.iconTheme.color
+                          : Colors.white // White icon on primary color
+                      ),
                 ),
               ),
             ),
@@ -223,21 +248,27 @@ class _FloatingBottomNavState extends State<FloatingBottomNav> with SingleTicker
 
   Widget _buildNavItem(int index, IconData icon, ThemeData theme) {
     final bool isSelected = widget.currentIndex == index;
-    final color = isSelected ? theme.primaryColor : theme.iconTheme.color!.withOpacity(0.4);
-    
-    return GestureDetector(
-      onTap: () => widget.onTap(index),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        color: Colors.transparent,
-        child: Icon(icon, color: color, size: 26),
+    final color = isSelected
+        ? theme.primaryColor
+        : theme.iconTheme.color!.withOpacity(0.4);
+
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => widget.onTap(index),
+        child: Container(
+          alignment: Alignment.center,
+          color: Colors.transparent,
+          child: Icon(icon, color: color, size: 26),
+        ),
       ),
     );
   }
 
-  Widget _buildMiniFab(int index, String label, IconData icon, Color color, double angleDeg) {
+  Widget _buildMiniFab(
+      int index, String label, IconData icon, Color color, double angleDeg) {
     final double rad = angleDeg * (math.pi / 180);
-    const double distance = 120.0; 
+    const double distance = 120.0;
     // Access theme for FAB background
     final theme = Theme.of(context);
 
@@ -260,12 +291,16 @@ class _FloatingBottomNavState extends State<FloatingBottomNav> with SingleTicker
                   GestureDetector(
                     onTap: () => _handleQuickAction(label),
                     child: Container(
-                      width: 50, height: 50,
+                      width: 50,
+                      height: 50,
                       decoration: BoxDecoration(
                         color: theme.cardColor, // Dynamic background
                         shape: BoxShape.circle,
                         border: Border.all(color: color.withOpacity(0.5)),
-                        boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 12)],
+                        boxShadow: [
+                          BoxShadow(
+                              color: color.withOpacity(0.3), blurRadius: 12)
+                        ],
                       ),
                       child: Icon(icon, color: color, size: 22),
                     ),
@@ -273,7 +308,11 @@ class _FloatingBottomNavState extends State<FloatingBottomNav> with SingleTicker
                   const SizedBox(height: 4),
                   Material(
                     color: Colors.transparent,
-                    child: Text(label, style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontSize: 10, fontWeight: FontWeight.bold)),
+                    child: Text(label,
+                        style: TextStyle(
+                            color: theme.textTheme.bodyMedium?.color,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

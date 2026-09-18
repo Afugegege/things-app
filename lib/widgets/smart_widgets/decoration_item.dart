@@ -56,7 +56,7 @@ class DecorationItem extends StatelessWidget {
                 padding: const EdgeInsets.all(4),
                 decoration: isSelected
                     ? BoxDecoration(
-                        border: Border.all(color: Colors.blueAccent, width: 2),
+                        border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black, width: 2),
                         borderRadius: BorderRadius.circular(8),
                       )
                     : null,
@@ -70,10 +70,30 @@ class DecorationItem extends StatelessWidget {
   }
 
   Widget _buildContent() {
-    if (layer.type == 'emoji') {
-      return Text(
-        layer.content,
-        style: const TextStyle(fontSize: 50, decoration: TextDecoration.none),
+    if (layer.type == 'badge' || layer.type == 'emoji') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Text(
+          layer.content,
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w900,
+            fontSize: 12,
+            letterSpacing: 1.2,
+            decoration: TextDecoration.none,
+          ),
+        ),
       );
     } else if (layer.type == 'doodle' || layer.type == 'image') {
       // NEW: Handle Doodle/Image Rendering

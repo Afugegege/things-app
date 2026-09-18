@@ -5,28 +5,27 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:permission_handler/permission_handler.dart';
 
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  static final FlutterLocalNotificationsPlugin _notifications =
+      FlutterLocalNotificationsPlugin();
 
   static Future<void> init() async {
     // [FIX] Initialize timezones using the data alias
     tz_data.initializeTimeZones();
-    
+
     // Android Settings
-    const AndroidInitializationSettings androidSettings = 
-        AndroidInitializationSettings('@mipmap/ic_launcher'); 
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
 
     // iOS Settings
-    const DarwinInitializationSettings iosSettings = 
+    const DarwinInitializationSettings iosSettings =
         DarwinInitializationSettings(
-          requestSoundPermission: false,
-          requestBadgePermission: false,
-          requestAlertPermission: false,
-        );
-
-    final initializationSettings = InitializationSettings(
-      android: androidSettings, 
-      iOS: iosSettings
+      requestSoundPermission: false,
+      requestBadgePermission: false,
+      requestAlertPermission: false,
     );
+
+    const initializationSettings =
+        InitializationSettings(android: androidSettings, iOS: iosSettings);
 
     await _notifications.initialize(
       initializationSettings,
@@ -42,16 +41,20 @@ class NotificationService {
   static Future<void> requestPermissions() async {
     if (Platform.isAndroid) {
       // Android 13+ Notification Permission
-      await _notifications.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
-      
-      // Android 12+ Exact Alarm
-      await _notifications.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()?.requestExactAlarmsPermission();
+      await _notifications
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
 
+      // Android 12+ Exact Alarm
+      await _notifications
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestExactAlarmsPermission();
     } else if (Platform.isIOS) {
       await _notifications
-          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()
           ?.requestPermissions(
             alert: true,
             badge: true,
@@ -74,7 +77,7 @@ class NotificationService {
       tz.TZDateTime.from(scheduledTime, tz.local),
       const NotificationDetails(
         android: AndroidNotificationDetails(
-          'task_channel', 
+          'task_channel',
           'Task Reminders',
           channelDescription: 'Notifications for task timers',
           importance: Importance.max,
@@ -84,7 +87,8 @@ class NotificationService {
       ),
       // [FIX] These enums are correct for flutter_local_notifications ^17.0.0
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
@@ -111,22 +115,24 @@ class NotificationService {
           autoCancel: false, // Tapping doesnt dismiss
           actions: [
             AndroidNotificationAction(
-              'dismiss_event', 
+              'dismiss_event',
               'End',
               showsUserInterface: false,
-              cancelNotification: true, // Clicking this specific button cancels it
+              cancelNotification:
+                  true, // Clicking this specific button cancels it
             ),
           ],
         ),
         iOS: DarwinNotificationDetails(
-          categoryIdentifier: 'event_category', 
-           // iOS handles actions via categories, simpler setup for now:
-           presentAlert: true,
-           presentSound: true,
+          categoryIdentifier: 'event_category',
+          // iOS handles actions via categories, simpler setup for now:
+          presentAlert: true,
+          presentSound: true,
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 

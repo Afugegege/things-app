@@ -27,6 +27,23 @@ quill.Document markdownToQuill(String markdown) {
     } else if (content.startsWith('### ')) {
       content = content.substring(4);
       attributes = {'header': 3};
+    } else if (RegExp(r'^\[x\]\s', caseSensitive: false).hasMatch(content.trimLeft())) {
+      // Checked checkbox: [x] item
+      content = content.trimLeft().replaceFirst(RegExp(r'^\[x\]\s', caseSensitive: false), '');
+      attributes = {'list': 'checked'};
+    } else if (RegExp(r'^\[ \]\s?').hasMatch(content.trimLeft()) || content.trimLeft().startsWith('[]')) {
+      // Unchecked checkbox: [ ] item or [] item
+      content = content.trimLeft()
+          .replaceFirst(RegExp(r'^\[\s?\]\s?'), '');
+      attributes = {'list': 'unchecked'};
+    } else if (RegExp(r'^[-*]\s+\[x\]\s?', caseSensitive: false).hasMatch(content.trimLeft())) {
+      // GFM checked checkbox: - [x] item
+      content = content.trimLeft().replaceFirst(RegExp(r'^[-*]\s+\[x\]\s?', caseSensitive: false), '');
+      attributes = {'list': 'checked'};
+    } else if (RegExp(r'^[-*]\s+\[\s?\]\s?').hasMatch(content.trimLeft())) {
+      // GFM unchecked checkbox: - [ ] item
+      content = content.trimLeft().replaceFirst(RegExp(r'^[-*]\s+\[\s?\]\s?'), '');
+      attributes = {'list': 'unchecked'};
     } else if (content.trimLeft().startsWith('- ') || content.trimLeft().startsWith('* ')) {
       content = content.trimLeft().substring(2);
       attributes = {'list': 'bullet'};

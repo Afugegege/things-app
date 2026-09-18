@@ -27,38 +27,9 @@ class AuthService {
   }
 
   // Sign In with Google
-  static Future<AuthResponse> signInWithGoogle() async {
-    // 1. Web-based OAuth (Easy/Standard)
-    // return await _supabase.auth.signInWithOAuth(Provider.google);
-
-    // 2. Native Google Sign In (Better UX for Mobile)
-    const webClientId = 'YOUR_WEB_CLIENT_ID_FROM_GCP'; // TODO: User needs to insert this eventually, or we use environmental variables.
-    
-    final gsi.GoogleSignIn googleSignIn = gsi.GoogleSignIn(
-      // serverClientId: webClientId,
-    );
-    final gsi.GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-    
-    if (googleUser == null) {
-      throw 'Google Sign In aborted';
-    }
-
-    final gsi.GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-    final accessToken = googleAuth.accessToken;
-    final idToken = googleAuth.idToken;
-
-    if (accessToken == null) {
-      throw 'No Access Token found.';
-    }
-    if (idToken == null) {
-      throw 'No ID Token found.';
-    }
-
-    return await _supabase.auth.signInWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: idToken,
-      accessToken: accessToken,
-    );
+  static Future<void> signInWithGoogle() async {
+    // Web-based OAuth (Easy/Standard - no mobile config needed)
+    await _supabase.auth.signInWithOAuth(OAuthProvider.google);
   }
 
   // Sign Out

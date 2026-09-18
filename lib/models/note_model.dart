@@ -11,19 +11,21 @@ class Note {
   final bool isPinned;
   final int? backgroundColor;
   final String? backgroundImage;
-  
-  final String? stickerEmoji; 
+
+  final String? stickerEmoji;
   final String? buttonLabel;
   final String? buttonLink;
   final int? buttonColor;
   final String? themeId;
 
-  final String widgetType; 
+  final String widgetType;
   final List<DecorationLayer> designLayers;
   final List<String> images;
 
   // --- ADDED THIS PROPERTY ---
-  final bool isFullWidth; 
+  final bool isFullWidth;
+  final double? fontSize;
+  final bool isExpanded;
 
   String get plainTextContent {
     return _extractText(content);
@@ -50,7 +52,7 @@ class Note {
               }
             }
             if (!hasText) return processed; // Keep original if no text found
-            
+
             final result = buffer.toString().trim();
             // If the result looks like another JSON delta, loop again
             if (result.startsWith('[') && result.contains('insert')) {
@@ -62,7 +64,7 @@ class Note {
             break; // Stop decoding on error
           }
         } else {
-            break; // Not JSON
+          break; // Not JSON
         }
       }
       return processed;
@@ -90,6 +92,8 @@ class Note {
     this.designLayers = const [],
     this.images = const [],
     this.isFullWidth = false, // Default to half-width
+    this.fontSize,
+    this.isExpanded = false,
   });
 
   factory Note.fromJson(Map<String, dynamic> json) {
@@ -110,33 +114,38 @@ class Note {
       themeId: json['themeId'],
       widgetType: json['widgetType'] ?? 'standard',
       designLayers: (json['designLayers'] as List<dynamic>?)
-          ?.map((e) => DecorationLayer.fromJson(e))
-          .toList() ?? [],
+              ?.map((e) => DecorationLayer.fromJson(e))
+              .toList() ??
+          [],
       images: List<String>.from(json['images'] ?? []),
       isFullWidth: json['isFullWidth'] ?? false, // Load from JSON
+      fontSize: json['fontSize']?.toDouble(),
+      isExpanded: json['isExpanded'] ?? false,
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'content': content,
-    'createdAt': createdAt.toIso8601String(),
-    'updatedAt': updatedAt.toIso8601String(),
-    'folder': folder,
-    'isPinned': isPinned,
-    'backgroundColor': backgroundColor,
-    'backgroundImage': backgroundImage,
-    'stickerEmoji': stickerEmoji,
-    'buttonLabel': buttonLabel,
-    'buttonLink': buttonLink,
-    'buttonColor': buttonColor,
-    'themeId': themeId,
-    'widgetType': widgetType,
-    'designLayers': designLayers.map((l) => l.toJson()).toList(),
-    'images': images,
-    'isFullWidth': isFullWidth, // Save to JSON
-  };
+        'id': id,
+        'title': title,
+        'content': content,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+        'folder': folder,
+        'isPinned': isPinned,
+        'backgroundColor': backgroundColor,
+        'backgroundImage': backgroundImage,
+        'stickerEmoji': stickerEmoji,
+        'buttonLabel': buttonLabel,
+        'buttonLink': buttonLink,
+        'buttonColor': buttonColor,
+        'themeId': themeId,
+        'widgetType': widgetType,
+        'designLayers': designLayers.map((l) => l.toJson()).toList(),
+        'images': images,
+        'isFullWidth': isFullWidth, // Save to JSON
+        'fontSize': fontSize,
+        'isExpanded': isExpanded,
+      };
 
   Note copyWith({
     String? id,
@@ -156,12 +165,14 @@ class Note {
     List<DecorationLayer>? designLayers,
     List<String>? images,
     bool? isFullWidth, // Added to copyWith
+    double? fontSize,
+    bool? isExpanded,
   }) {
     return Note(
       id: id ?? this.id,
       title: title ?? this.title,
       content: content ?? this.content,
-      createdAt: this.createdAt,
+      createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       folder: folder ?? this.folder,
       isPinned: isPinned ?? this.isPinned,
@@ -176,6 +187,8 @@ class Note {
       designLayers: designLayers ?? this.designLayers,
       images: images ?? this.images,
       isFullWidth: isFullWidth ?? this.isFullWidth, // Added here
+      fontSize: fontSize ?? this.fontSize,
+      isExpanded: isExpanded ?? this.isExpanded,
     );
   }
 }

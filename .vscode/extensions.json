@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "dart-code.flutter",
+    "dart-code.dart-code",
+    "nash.awesome-flutter-snippets",
+    "gristick.flutter-riverpod-snippets",
+    "marcelovelasquez.flutter-tree",
+    "alexisvt.flutter-snippets",
+    "eamodio.gitlens",
+    "usernamehw.errorlens"
+  ]
+}

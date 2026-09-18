@@ -15,13 +15,14 @@ class EventTicker extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: BoxDecoration(
         color: isDark ? Theme.of(context).cardColor : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         border: isDark 
-            ? Border.all(color: Colors.white24, width: 2.0) 
-            : Border.all(color: isToday ? Colors.redAccent.withOpacity(0.5) : Colors.blueAccent.withOpacity(0.3), width: 2.0),
+            ? Border.all(color: Colors.white12, width: 1.0) 
+            : Border.all(color: isToday ? Colors.redAccent.withOpacity(0.4) : Colors.black.withOpacity(0.08), width: 1.0),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -31,14 +32,14 @@ class EventTicker extends StatelessWidget {
             children: [
               Icon(
                 CupertinoIcons.calendar, 
-                color: isToday ? Colors.redAccent : Colors.blueAccent, 
+                color: isToday ? Colors.redAccent : (isDark ? Colors.white : Colors.black), 
                 size: 16
               ),
               const SizedBox(width: 8),
               Text(
                 isToday ? "HAPPENING NOW" : "UP NEXT • ${days}d LEFT", 
                 style: TextStyle(
-                  color: isToday ? Colors.redAccent : Colors.blueAccent, 
+                  color: isToday ? Colors.redAccent : (isDark ? Colors.white : Colors.black), 
                   fontSize: 10, 
                   fontWeight: FontWeight.bold, 
                   letterSpacing: 1.0

@@ -1,12 +1,14 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/user_provider.dart';
 
 class GlassContainer extends StatelessWidget {
   final double? width;
   final double? height;
   final double borderRadius;
   final double blur;
-  final double opacity;
+  final double? opacity;
   final Widget child;
   final EdgeInsets? padding;
   final EdgeInsets? margin;
@@ -19,7 +21,7 @@ class GlassContainer extends StatelessWidget {
     this.height,
     this.borderRadius = 20.0,
     this.blur = 15.0,
-    this.opacity = 0.1,
+    this.opacity,
     this.padding,
     this.margin,
     this.hasBorder = true,
@@ -27,6 +29,12 @@ class GlassContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    double activeOpacity = opacity ?? 0.1;
+    try {
+      final userProv = Provider.of<UserProvider>(context, listen: false);
+      activeOpacity = opacity ?? userProv.glassOpacity;
+    } catch (_) {}
+
     return Container(
       margin: margin,
       width: width,
@@ -45,7 +53,7 @@ class GlassContainer extends StatelessWidget {
                 ),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface.withOpacity(opacity),
+                    color: Theme.of(context).colorScheme.surface.withOpacity(activeOpacity),
                     borderRadius: BorderRadius.circular(borderRadius),
                     border: hasBorder ? Border.all(
                       color: Colors.white.withOpacity(0.1),

@@ -29,18 +29,25 @@ class _LoginScreenState extends State<LoginScreen> {
       if (_isSignUp) {
         await AuthService.signUpWithEmail(email, password);
         if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account created! Please sign in.')));
-           setState(() => _isSignUp = false);
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Account created! Please sign in.')));
+          setState(() => _isSignUp = false);
         }
       } else {
         await AuthService.signInWithEmail(email, password);
         // Navigation is handled by auth state listener or directly
-        if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainScaffold()));
+        if (mounted)
+          Navigator.pushReplacement(
+              context, MaterialPageRoute(builder: (_) => const MainScaffold()));
       }
     } on AuthException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.red));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message), backgroundColor: Colors.red));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -50,9 +57,14 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     try {
       await AuthService.signInWithGoogle();
-      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainScaffold()));
+      if (mounted)
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (_) => const MainScaffold()));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google Sign In Error: $e'), backgroundColor: Colors.red));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Google Sign In Error: $e'),
+            backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -61,8 +73,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     // Basic dark theme for login
-    final isDark = true; 
-    final textColor = Colors.white;
+    const isDark = true;
+    const textColor = Colors.white;
     const secondaryTextColor = Colors.white70;
 
     return Scaffold(
@@ -71,16 +83,19 @@ class _LoginScreenState extends State<LoginScreen> {
         children: [
           // Background Gradient
           Positioned.fill(
-             child: Container(
-               decoration: const BoxDecoration(
-                 gradient: LinearGradient(
-                   begin: Alignment.topLeft, end: Alignment.bottomRight,
-                   colors: [Color(0xFF000000), Color(0xFF1A1A1A), Color(0xFF000000)]
-                 )
-               ),
-             ),
+            child: Container(
+              decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                    Color(0xFF000000),
+                    Color(0xFF1A1A1A),
+                    Color(0xFF000000)
+                  ])),
+            ),
           ),
-          
+
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
@@ -89,14 +104,46 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   // Logo
                   Container(
-                    width: 80, height: 80,
-                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                    child: const Icon(CupertinoIcons.checkmark_alt_circle_fill, color: Colors.black, size: 40),
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF6C63FF).withOpacity(0.35),
+                          blurRadius: 24,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(22),
+                      child: Image.asset(
+                        'assets/icons/app_icon.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            Container(
+                          decoration: const BoxDecoration(
+                              color: Colors.white, shape: BoxShape.circle),
+                          child: const Icon(
+                              CupertinoIcons.checkmark_alt_circle_fill,
+                              color: Colors.black,
+                              size: 40),
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 20),
-                  const Text("Things", style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                  const Text("Things",
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2)),
                   const SizedBox(height: 10),
-                  const Text("Organize your entire existence.", style: TextStyle(color: secondaryTextColor, fontSize: 14)),
+                  const Text("Organize your entire existence.",
+                      style:
+                          TextStyle(color: secondaryTextColor, fontSize: 14)),
                   const SizedBox(height: 50),
 
                   GlassContainer(
@@ -110,20 +157,26 @@ class _LoginScreenState extends State<LoginScreen> {
                           CupertinoTextField(
                             controller: _emailCtrl,
                             placeholder: "Email",
-                            placeholderStyle: const TextStyle(color: Colors.white38),
+                            placeholderStyle:
+                                const TextStyle(color: Colors.white38),
                             style: const TextStyle(color: Colors.white),
                             padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
+                            decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(12)),
                             keyboardType: TextInputType.emailAddress,
                           ),
                           const SizedBox(height: 15),
                           CupertinoTextField(
                             controller: _passCtrl,
                             placeholder: "Password",
-                             placeholderStyle: const TextStyle(color: Colors.white38),
+                            placeholderStyle:
+                                const TextStyle(color: Colors.white38),
                             style: const TextStyle(color: Colors.white),
                             padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
+                            decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(12)),
                             obscureText: true,
                           ),
                           const SizedBox(height: 25),
@@ -135,20 +188,27 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(15),
                               onPressed: _isLoading ? null : _handleEmailAuth,
-                              child: _isLoading 
-                                ? const CupertinoActivityIndicator()
-                                : Text(_isSignUp ? "Create Account" : "Sign In", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                              child: _isLoading
+                                  ? const CupertinoActivityIndicator()
+                                  : Text(
+                                      _isSignUp ? "Create Account" : "Sign In",
+                                      style: const TextStyle(
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.bold)),
                             ),
                           ),
-                          
+
                           const SizedBox(height: 20),
-                          
+
                           // Toggle Mode
                           GestureDetector(
                             onTap: () => setState(() => _isSignUp = !_isSignUp),
                             child: Text(
-                              _isSignUp ? "Already have an account? Sign In" : "New here? Create Account",
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              _isSignUp
+                                  ? "Already have an account? Sign In"
+                                  : "New here? Create Account",
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 12),
                             ),
                           ),
                         ],
@@ -157,7 +217,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
 
                   const SizedBox(height: 30),
-                  const Text("OR", style: TextStyle(color: Colors.white24, fontWeight: FontWeight.bold)),
+                  const Text("OR",
+                      style: TextStyle(
+                          color: Colors.white24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 30),
 
                   // Google Button
@@ -167,12 +229,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: Colors.white.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(15),
                       onPressed: _isLoading ? null : _handleGoogleAuth,
-                      child: Row(
+                      child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(CupertinoIcons.globe, color: Colors.white, size: 20),
+                        children: [
+                          Icon(CupertinoIcons.globe,
+                              color: Colors.white, size: 20),
                           SizedBox(width: 10),
-                          Text("Continue with Google", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          Text("Continue with Google",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),

@@ -19,13 +19,13 @@ class _NotesListScreenState extends State<NotesListScreen> {
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   bool _isGrid = true; 
+  List<String> _sessionOrder = [];
 
   final Map<String, Color> _folderColors = {
     'Uncategorised': const Color(0xFFE0E0E0),
     'Personal': const Color(0xFFFDE8B5), 
     'Work': const Color(0xFFD6E4FF),     
     'Ideas': const Color(0xFFE2F0CB),    
-    'Journal': const Color(0xFFFFCCF8),
   };
 
   Color _getFolderColor(String folderName) {
@@ -47,6 +47,34 @@ class _NotesListScreenState extends State<NotesListScreen> {
       }).toList();
     }
 
+    // [PRESERVE SESSION ORDER]
+    if (_isSearching && _searchController.text.isNotEmpty) {
+      _sessionOrder.clear();
+    } else if (_sessionOrder.isEmpty) {
+      _sessionOrder = displayedNotes.map((n) => n.id).toList();
+    } else {
+      final currentMap = {for (var n in displayedNotes) n.id: n};
+      final List<Note> orderedNotes = [];
+      final List<String> updatedOrder = [];
+
+      for (var n in displayedNotes) {
+        if (!_sessionOrder.contains(n.id)) {
+          orderedNotes.add(n);
+          updatedOrder.add(n.id);
+        }
+      }
+
+      for (var id in _sessionOrder) {
+        if (currentMap.containsKey(id)) {
+          orderedNotes.add(currentMap[id]!);
+          updatedOrder.add(id);
+        }
+      }
+
+      _sessionOrder = updatedOrder;
+      displayedNotes = orderedNotes;
+    }
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       
@@ -56,7 +84,9 @@ class _NotesListScreenState extends State<NotesListScreen> {
           backgroundColor: Colors.white,
           shape: const CircleBorder(),
           child: const Icon(Icons.add, color: Colors.black, size: 30),
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NoteEditorScreen())),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NoteEditorScreen())).then((_) {
+            if (mounted) setState(() => _sessionOrder.clear());
+          }),
         ),
       ),
 
@@ -157,7 +187,9 @@ class _NotesListScreenState extends State<NotesListScreen> {
     }
 
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NoteEditorScreen(note: note))),
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NoteEditorScreen(note: note))).then((_) {
+        if (mounted) setState(() => _sessionOrder.clear());
+      }),
       child: Container(
         decoration: BoxDecoration(
           color: bgColor,

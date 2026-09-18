@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum EventType { work, personal, birthday, holiday, oneOff }
+enum EventType { event, task, birthday, work, personal, holiday, oneOff }
 
 class Event {
   final String id;
@@ -14,6 +14,7 @@ class Event {
   final bool isPinned;
   final EventType type;
   final Color color; 
+  final String? linkedNoteId;
 
   Event({
     required this.id,
@@ -25,8 +26,9 @@ class Event {
     this.isAllDay = false,
     this.isDayCounter = false,
     this.isPinned = false,
-    this.type = EventType.personal,
-    this.color = Colors.blueAccent, 
+    this.type = EventType.event,
+    this.color = Colors.grey, 
+    this.linkedNoteId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -41,6 +43,7 @@ class Event {
     'isPinned': isPinned,
     'type': type.toString().split('.').last,
     'color': color.value, 
+    'linkedNoteId': linkedNoteId,
   };
 
   factory Event.fromJson(Map<String, dynamic> json) {
@@ -58,9 +61,10 @@ class Event {
       isPinned: json['isPinned'] ?? false,
       type: EventType.values.firstWhere(
         (e) => e.toString().split('.').last == json['type'],
-        orElse: () => EventType.personal,
+        orElse: () => EventType.event,
       ),
-      color: json['color'] != null ? Color(json['color']) : Colors.blueAccent,
+      color: json['color'] != null ? Color(json['color']) : Colors.grey,
+      linkedNoteId: json['linkedNoteId'],
     );
   }
 
@@ -76,6 +80,7 @@ class Event {
     bool? isPinned,
     EventType? type,
     Color? color,
+    String? linkedNoteId,
   }) {
     return Event(
       id: id ?? this.id,
@@ -89,6 +94,7 @@ class Event {
       isPinned: isPinned ?? this.isPinned,
       type: type ?? this.type,
       color: color ?? this.color,
+      linkedNoteId: linkedNoteId ?? this.linkedNoteId,
     );
   }
 

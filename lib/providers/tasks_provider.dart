@@ -9,18 +9,12 @@ class TasksProvider extends ChangeNotifier {
   List<Task> get tasks => _tasks;
 
   TasksProvider() {
-    _loadTasks();
+    loadTasks();
   }
 
-  void _loadTasks() {
+  void loadTasks() {
     final loaded = StorageService.loadTasks();
-    if (loaded.isNotEmpty) {
-      _tasks = loaded;
-    } else {
-      // Load Sample Data
-      _tasks = SampleData.getSampleTasks();
-      StorageService.saveTasks(_tasks); // Persist sample data
-    }
+    _tasks = loaded;
 
     // Sort: Not Done first, then by priority (descending)
     _tasks.sort((a, b) {
@@ -63,6 +57,15 @@ class TasksProvider extends ChangeNotifier {
 
   void deleteTask(String id) {
     _tasks.removeWhere((t) => t.id == id);
+    _save();
+  }
+
+  void restoreTask(Task task, {int? index}) {
+    if (index != null && index >= 0 && index <= _tasks.length) {
+      _tasks.insert(index, task);
+    } else {
+      _tasks.insert(0, task);
+    }
     _save();
   }
 

@@ -93,6 +93,23 @@ class StorageService {
     try { return jsonDecode(data); } catch (e) { return {}; }
   }
 
+  static const String _moneyInitKey = 'money_has_initialized';
+  static Future<void> setMoneyInitialized(bool val) async {
+    await _prefs.setBool(_moneyInitKey, val);
+  }
+  static bool hasMoneyInitialized() {
+    return _prefs.getBool(_moneyInitKey) ?? false;
+  }
+
+  // --- CURRENCY ---
+  static const String _selectedCurrencyKey = 'selected_currency';
+  static Future<void> saveSelectedCurrency(String currency) async {
+    await _prefs.setString(_selectedCurrencyKey, currency.toUpperCase());
+  }
+  static String loadSelectedCurrency() {
+    return _prefs.getString(_selectedCurrencyKey) ?? 'USD';
+  }
+
   // --- ROAM & PULSE ---
   static const String _roamKey = 'roam_trips';
   static Future<void> saveTrips(List<Map<String, dynamic>> trips) async {
@@ -155,5 +172,66 @@ class StorageService {
   }
   static List<String> loadDashboardFilters() {
     return _prefs.getStringList(_dashboardFiltersKey) ?? ['All'];
+  }
+
+  // --- DASHBOARD WIDGET ORDER ---
+  static const String _dashboardOrderKey = 'dashboard_widget_order';
+  static Future<void> saveDashboardWidgetOrder(List<String> order) async {
+    await _prefs.setStringList(_dashboardOrderKey, order);
+  }
+  static List<String> loadDashboardWidgetOrder() {
+    return _prefs.getStringList(_dashboardOrderKey) ?? [];
+  }
+
+  // --- GLASS OPACITY & FONT ---
+  static const String _glassOpacityKey = 'glass_opacity_pref';
+  static Future<void> saveGlassOpacity(double opacity) async {
+    await _prefs.setDouble(_glassOpacityKey, opacity);
+  }
+  static double loadGlassOpacity() {
+    return _prefs.getDouble(_glassOpacityKey) ?? 0.15;
+  }
+
+  static const String _fontFamilyKey = 'font_family_pref';
+  static Future<void> saveFontFamily(String font) async {
+    await _prefs.setString(_fontFamilyKey, font);
+  }
+  static String loadFontFamily() {
+    return _prefs.getString(_fontFamilyKey) ?? 'Default';
+  }
+
+  // --- SAVINGS GOALS ---
+  static const String _savingsGoalsKey = 'savings_goals_data';
+  static Future<void> saveSavingsGoals(List<Map<String, dynamic>> goals) async {
+    await _prefs.setString(_savingsGoalsKey, jsonEncode(goals));
+  }
+  static List<Map<String, dynamic>> loadSavingsGoals() {
+    final String? data = _prefs.getString(_savingsGoalsKey);
+    if (data == null) return [];
+    try {
+      return List<Map<String, dynamic>>.from(jsonDecode(data));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // --- SLEEP & ENERGY LOGS ---
+  static const String _sleepLogsKey = 'sleep_energy_logs';
+  static Future<void> saveSleepEnergyLogs(List<Map<String, dynamic>> logs) async {
+    await _prefs.setString(_sleepLogsKey, jsonEncode(logs));
+  }
+  static List<Map<String, dynamic>> loadSleepEnergyLogs() {
+    final String? data = _prefs.getString(_sleepLogsKey);
+    if (data == null) return [];
+    try {
+      return List<Map<String, dynamic>>.from(jsonDecode(data));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // --- RESET / DELETE ALL ---
+  static Future<void> clearAllData() async {
+    await _prefs.clear();
   }
 }

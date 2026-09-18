@@ -30,15 +30,22 @@ class CountdownWidget extends StatelessWidget {
     final dimmedColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? theme.cardColor : Colors.black.withOpacity(0.05),
         borderRadius: BorderRadius.circular(24),
-        border: note.isPinned 
-            ? Border.all(color: textColor.withOpacity(0.8), width: 4.0) 
-            : (isDark ? Border.all(color: Colors.white24, width: 2.0) : Border.all(color: theme.dividerColor, width: 2.0)),
+        border: note.isPinned
+            ? Border.all(color: textColor, width: 2.0)
+            : (isDark
+                ? Border.all(color: Colors.white12, width: 1.0)
+                : Border.all(
+                    color: Colors.black.withOpacity(0.08), width: 1.0)),
         boxShadow: [
-           BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 5))
         ],
       ),
       child: Column(
@@ -49,16 +56,34 @@ class CountdownWidget extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Icon(CupertinoIcons.airplane, color: textColor, size: 20),
-              Text("${target.day}/${target.month}", style: TextStyle(color: dimmedColor, fontSize: 12, fontWeight: FontWeight.bold)),
+              Text("${target.day}/${target.month}",
+                  style: TextStyle(
+                      color: dimmedColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 10),
-          Text("$daysLeft", style: TextStyle(color: textColor, fontSize: 48, fontWeight: FontWeight.bold, height: 1.0)),
-          Text("DAYS LEFT", style: TextStyle(color: dimmedColor, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.w600)),
+          Text("$daysLeft",
+              style: TextStyle(
+                  color: textColor,
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  height: 1.0)),
+          Text("DAYS LEFT",
+              style: TextStyle(
+                  color: dimmedColor,
+                  fontSize: 10,
+                  letterSpacing: 2,
+                  fontWeight: FontWeight.w600)),
           const SizedBox(height: 15),
           Align(
             alignment: Alignment.centerLeft,
-            child: Text(note.title, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
+            child: Text(note.title,
+                style: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16)),
           ),
         ],
       ),
@@ -71,246 +96,342 @@ class ChecklistWidget extends StatelessWidget {
   final Note note;
   const ChecklistWidget({super.key, required this.note});
 
+  static dynamic _parseContentJson(dynamic content) {
+    dynamic parsed = content;
+    if (parsed is String) {
+      String s = parsed.trim();
+      if (s.startsWith('[') || s.startsWith('{')) {
+        try {
+          for (int i = 0; i < 3; i++) {
+            if (s.startsWith('[') || s.startsWith('{')) {
+              parsed = jsonDecode(s);
+              if (parsed is String) {
+                s = parsed.trim();
+              } else {
+                break;
+              }
+            } else {
+              break;
+            }
+          }
+        } catch (_) {}
+      }
+    }
+    return parsed;
+  }
+
+  static List<String> _extractLines(Note note) {
+    dynamic parsed = _parseContentJson(note.content);
+    if (parsed is List) {
+      final buffer = StringBuffer();
+      for (final op in parsed) {
+        if (op is Map && op.containsKey('insert')) {
+          final insert = op['insert'];
+          if (insert is String) {
+            buffer.write(insert);
+          }
+        }
+      }
+      String fullText = buffer.toString().replaceAll('\r\n', '\n');
+      if (fullText.endsWith('\n')) {
+        fullText = fullText.substring(0, fullText.length - 1);
+      }
+      return fullText.split('\n');
+    }
+    String text = note.content.replaceAll('\r\n', '\n');
+    if (text.endsWith('\n')) {
+      text = text.substring(0, text.length - 1);
+    }
+    final lines = text.split('\n');
+    if (lines.isNotEmpty) return lines;
+    return note.plainTextContent.replaceAll('\r\n', '\n').split('\n');
+  }
+
+  static bool _hasCheckbox(String text) {
+    final trimmed = text.trim();
+    final checkboxMarkerRegExp =
+        RegExp(r'^(?:-\s*|[*]\s*|•\s*|\d+\.\s*)?(?:\[[ xX]\]|[☐☑])');
+    return checkboxMarkerRegExp.hasMatch(trimmed) ||
+        trimmed.contains('[ ]') ||
+        trimmed.contains('[x]') ||
+        trimmed.contains('[X]') ||
+        trimmed.contains('☐') ||
+        trimmed.contains('☑');
+  }
+
+  static String _toggleCheckboxString(String text) {
+    if (text.contains('[ ]')) {
+      return text.replaceFirst('[ ]', '[x]');
+    } else if (text.contains('[x]')) {
+      return text.replaceFirst('[x]', '[ ]');
+    } else if (text.contains('[X]')) {
+      return text.replaceFirst('[X]', '[ ]');
+    } else if (text.contains('☐')) {
+      return text.replaceFirst('☐', '☑');
+    } else if (text.contains('☑')) {
+      return text.replaceFirst('☑', '☐');
+    } else {
+      final isDone = text.toLowerCase().contains('[x]') || text.contains('☑');
+      final clean = text
+          .replaceAll(
+              RegExp(
+                  r'^(?:-\s*|[*]\s*|•\s*|\d+\.\s*)?(?:\[[ xX]\]|[☐☑])\s*'),
+              '')
+          .replaceAll(RegExp(r'^(?:-\s*|[*]\s*|•\s*)'), '')
+          .trim();
+      return isDone ? "- [ ] $clean" : "- [x] $clean";
+    }
+  }
+
   void _toggleItem(BuildContext context, int lineIndex, String currentLine) {
     String newContent = note.content;
     bool contentUpdated = false;
 
     try {
-      // 1. Safe JSON Decode (Handle multi-level string encoding)
-      dynamic parsed = note.content;
-      bool isJson = false;
-        if (parsed is String) {
-          String s = parsed.trim();
-          if (s.startsWith('[') || s.startsWith('{')) {
-             try {
-               // Try deep decoding up to 3 times
-               for (int i = 0; i < 3; i++) {
-                 if (s is String && (s.startsWith('[') || s.startsWith('{'))) {
-                   parsed = jsonDecode(s);
-                   isJson = true;
-                   if (parsed is String) s = parsed; // unwrapped layer
-                 } else {
-                   break; 
-                 }
-               }
-             } catch (_) {}
+      dynamic parsed = _parseContentJson(note.content);
+
+      if (parsed is List) {
+        List<dynamic> ops = List.from(parsed.map((op) {
+          if (op is Map) {
+            final copy = Map<String, dynamic>.from(op);
+            if (copy.containsKey('attributes') && copy['attributes'] is Map) {
+              copy['attributes'] =
+                  Map<String, dynamic>.from(copy['attributes']);
+            }
+            return copy;
+          }
+          return op;
+        }));
+
+        // Pass 1: Toggle Quill list attribute on the newline that terminates lineIndex
+        int currentLineCount = 0;
+        for (int i = 0; i < ops.length; i++) {
+          var op = ops[i];
+          if (op is Map && op['insert'] is String) {
+            String text = op['insert'];
+            int newlinesInOp = '\n'.allMatches(text).length;
+
+            if (newlinesInOp > 0) {
+              // Line lineIndex terminates in this op if it falls in [currentLineCount, currentLineCount + newlinesInOp)
+              if (lineIndex >= currentLineCount &&
+                  lineIndex < currentLineCount + newlinesInOp) {
+                if (op.containsKey('attributes') &&
+                    op['attributes'] is Map) {
+                  Map<String, dynamic> attrs = op['attributes'];
+                  if (attrs.containsKey('list')) {
+                    bool isChecked = attrs['list'] == 'checked';
+                    attrs['list'] = isChecked ? 'unchecked' : 'checked';
+                    contentUpdated = true;
+                    break;
+                  }
+                }
+              }
+              currentLineCount += newlinesInOp;
+            }
           }
         }
 
-      if (isJson && parsed is List) {
-         List<dynamic> ops = List.from(parsed); // generic cast
-         int currentLineCount = 0;
-         
-         // Iterate to find the target line's content or newline attribute
-         for (int i = 0; i < ops.length; i++) {
-           var op = ops[i];
-           if (op is Map && op['insert'] is String) {
+        // Pass 2: If no block attribute toggled, check for inline markdown checkboxes in ops
+        if (!contentUpdated) {
+          int lineCounter = 0;
+          for (int i = 0; i < ops.length; i++) {
+            var op = ops[i];
+            if (op is Map && op['insert'] is String) {
               String text = op['insert'];
-              List<String> opLines = text.split('\n');
-              // Note: split('\n') for "A\nB" gives ["A", "B"]. 
-              // For "A\n" gives ["A", ""].
-              // Newlines are separators.
-              
-              // We need to match precise line index.
-              // Logic: Count newlines in this op.
-              // Each newline finishes a line.
-              
               int newlinesInOp = '\n'.allMatches(text).length;
-              
-              // Check if our target line ENDS in this op?
-              // The attributes for line N are usually on the Nth newline.
-              
-              // Simplistic Text Toggle Strategy (Markdown Style)
-              // If we are INSIDE the line content (not the newline op), check for "- [ ]".
-              if (currentLineCount <= lineIndex && (currentLineCount + newlinesInOp) >= lineIndex) {
-                 // The line start is here.
-                 // Find local index relative to line count.
-                 // This is tricky crossing ops.
-                 // Simplified: If op contains text for this line, scan it.
-                 
-                 // Fallback to simpler 'Check whole op for target text' approach for Markdown
-                 // This matches previous logic which worked for Text-based lists.
-                  if (text.contains(currentLine.trim())) { // Check matches content
-                     // Toggle text pattern
-                     if (text.contains('- [ ]') || text.contains('- [x]')) {
-                         String toggled = text.replaceAll('- [ ]', '- [x]').replaceAll('- [x]', '- [ ]');
-                         // Be careful not to replace wrong ones if multiple same lines.
-                         // But simple replace is safer than index wizardry for now.
-                         // Better: RegExp replace first instance?
-                         // Let's assume one line per op usually for checkboxes.
-                         if (text.startsWith('- [')) {
-                            // Only toggle start
-                             String savedTail = text.substring(5);
-                             String header = text.substring(0, 5);
-                             header = header == '- [ ]' ? '- [x]' : '- [ ]';
-                             ops[i]['insert'] = header + savedTail;
-                             contentUpdated = true;
-                             break;
-                         }
-                     }
-                  }
-              }
 
-              // Attribute Toggle Strategy (Quill Style)
-              // We need to find the newline character that ENDS line 'lineIndex'.
-              // It is the (lineIndex + 1)-th newline in the whole doc.
-              // 'currentLineCount' tracks finished lines so far.
-              // If 'lineIndex' is 2, we want the newline at end of line 2.
-              
-              int relativeTarget = lineIndex - currentLineCount;
-              if (relativeTarget >= 0 && relativeTarget < newlinesInOp) {
-                 // Found the newline!
-                 // It is at specific index in 'text'.
-                 // BUT attributes apply to the whole op if not split.
-                 // If the op is just "\n", update it.
-                 if (text == '\n') {
-                    Map<String, dynamic> attrs = Map.from(ops[i]['attributes'] ?? {});
-                    bool isChecked = attrs['list'] == 'checked';
-                    attrs['list'] = isChecked ? 'unchecked' : 'checked';
-                    ops[i]['attributes'] = attrs;
+              if (newlinesInOp == 0) {
+                if (lineCounter == lineIndex && _hasCheckbox(text)) {
+                  ops[i]['insert'] = _toggleCheckboxString(text);
+                  contentUpdated = true;
+                  break;
+                }
+              } else {
+                if (lineIndex >= lineCounter &&
+                    lineIndex < lineCounter + newlinesInOp) {
+                  int relativeLine = lineIndex - lineCounter;
+                  List<String> opLines = text.split('\n');
+                  if (relativeLine < opLines.length &&
+                      _hasCheckbox(opLines[relativeLine])) {
+                    opLines[relativeLine] =
+                        _toggleCheckboxString(opLines[relativeLine]);
+                    ops[i]['insert'] = opLines.join('\n');
                     contentUpdated = true;
                     break;
-                 } else {
-                   // Op is mixed "Text\n". Attributes apply to newline.
-                   // In Quill, if op has text and \n, both share attributes block-wise? 
-                   // Usually separate ops: text op, then \n op.
-                   // If mixed, we might need to split to apply attribute safely.
-                   // For now, if we detect mixed content, assume implicit mode:
-                   // Just leave it - prevents corruption.
-                 }
+                  }
+                }
+                lineCounter += newlinesInOp;
               }
-              
-              currentLineCount += newlinesInOp;
-           }
-         }
-         
-         if (contentUpdated) {
-            newContent = jsonEncode(ops);
-         }
-      }
-    } catch (e) {
-      // Safely ignore deep JSON failures, fallback only if absolutely sure it's plain text?
-      // No, let's keep original content if JSON parse fails to avoid corruption.
-    }
-
-    // 2. Fallback: If no JSON update happened, and it looks like plain text...
-    // AND we are sure it is not valid JSON (e.g. parsed failed).
-    if (!contentUpdated) {
-       // Only run fallback if original does NOT start with JSON brackets
-       // ensuring we don't destroy unparsed JSON.
-       String trimmed = note.content.trim();
-       if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) {
-          final List<String> lines = note.plainTextContent.split('\n');
-          if (lineIndex < lines.length) {
-            bool isDone = currentLine.toLowerCase().contains('[x]');
-             String cleanText = currentLine.replaceAll(RegExp(r'- \[[ x]\] '), '').trim();
-             String newLine = isDone ? "- [ ] $cleanText" : "- [x] $cleanText";
-             lines[lineIndex] = newLine;
-             newContent = lines.join('\n');
+            }
           }
-       }
+        }
+
+        // Pass 3: Fallback content match if lineIndex could not be matched directly
+        if (!contentUpdated && currentLine.trim().isNotEmpty) {
+          String cleanCurrent = currentLine
+              .replaceAll(
+                  RegExp(
+                      r'^(?:-\s*|[*]\s*|•\s*|\d+\.\s*)?(?:\[[ xX]\]|[☐☑])\s*'),
+                  '')
+              .replaceAll(RegExp(r'^(?:-\s*|[*]\s*|•\s*)'), '')
+              .trim();
+
+          for (int i = 0; i < ops.length; i++) {
+            var op = ops[i];
+            if (op is Map && op['insert'] is String) {
+              String text = op['insert'];
+              int newlinesInOp = '\n'.allMatches(text).length;
+              if (newlinesInOp > 0 &&
+                  op.containsKey('attributes') &&
+                  op['attributes'] is Map) {
+                Map<String, dynamic> attrs = op['attributes'];
+                if (attrs.containsKey('list')) {
+                  if (i > 0 &&
+                      ops[i - 1] is Map &&
+                      ops[i - 1]['insert'] is String) {
+                    String prevText = ops[i - 1]['insert'].toString().trim();
+                    if (prevText.contains(cleanCurrent) ||
+                        cleanCurrent.contains(prevText)) {
+                      bool isChecked = attrs['list'] == 'checked';
+                      attrs['list'] = isChecked ? 'unchecked' : 'checked';
+                      contentUpdated = true;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        if (contentUpdated) {
+          newContent = jsonEncode(ops);
+        }
+      }
+    } catch (_) {}
+
+    // Fallback: Handle plain text / markdown content
+    if (!contentUpdated) {
+      String trimmed = note.content.trim();
+      if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) {
+        final List<String> lines = _extractLines(note);
+        int targetIndex = lineIndex;
+
+        if (targetIndex >= lines.length || !_hasCheckbox(lines[targetIndex])) {
+          String cleanCurrent = currentLine
+              .replaceAll(
+                  RegExp(
+                      r'^(?:-\s*|[*]\s*|•\s*|\d+\.\s*)?(?:\[[ xX]\]|[☐☑])\s*'),
+                  '')
+              .replaceAll(RegExp(r'^(?:-\s*|[*]\s*|•\s*)'), '')
+              .trim();
+          for (int i = 0; i < lines.length; i++) {
+            if (_hasCheckbox(lines[i])) {
+              String clean = lines[i]
+                  .replaceAll(
+                      RegExp(
+                          r'^(?:-\s*|[*]\s*|•\s*|\d+\.\s*)?(?:\[[ xX]\]|[☐☑])\s*'),
+                      '')
+                  .replaceAll(RegExp(r'^(?:-\s*|[*]\s*|•\s*)'), '')
+                  .trim();
+              if (clean == cleanCurrent || lines[i].contains(cleanCurrent)) {
+                targetIndex = i;
+                break;
+              }
+            }
+          }
+        }
+
+        if (targetIndex < lines.length) {
+          lines[targetIndex] = _toggleCheckboxString(lines[targetIndex]);
+          newContent = lines.join('\n');
+          contentUpdated = true;
+        }
+      }
     }
 
-    Provider.of<NotesProvider>(context, listen: false).updateNote(
-      note.copyWith(content: newContent, updatedAt: DateTime.now())
-    );
+    if (contentUpdated) {
+      Provider.of<NotesProvider>(context, listen: false).updateNote(
+          note.copyWith(content: newContent, updatedAt: DateTime.now()));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 1. Get Text Lines (Robust)
-    final List<String> allLines = note.plainTextContent.split('\n');
-    
-    // 2. Determine Checked State per Line
+    // 1. Get Text Lines aligned with document structure
+    final List<String> allLines = _extractLines(note);
+
+    // 2. Determine Checked State and Checkbox Status per Line
     List<bool> checkedState = List.filled(allLines.length, false);
-    
-    try {
-      // Decode JSON to extract attributes
-      dynamic parsed = note.content;
-      bool isJson = false;
-      if (parsed is String) {
-          String s = parsed.trim();
-          if (s.startsWith('[') || s.startsWith('{')) {
-             try {
-               for (int i = 0; i < 3; i++) {
-                 if (s is String && (s.startsWith('[') || s.startsWith('{'))) {
-                   parsed = jsonDecode(s);
-                   isJson = true;
-                   if (parsed is String) s = parsed;
-                 } else break;
-               }
-             } catch (_) {}
+    List<bool> isCheckboxLine = List.filled(allLines.length, false);
+
+    dynamic parsed = _parseContentJson(note.content);
+    if (parsed is List) {
+      int currentLineIndex = 0;
+      for (var op in parsed) {
+        if (op is Map && op['insert'] is String) {
+          String text = op['insert'];
+          int newlines = '\n'.allMatches(text).length;
+
+          bool isChecklistOp = false;
+          bool isChecked = false;
+          if (op.containsKey('attributes') && op['attributes'] is Map) {
+            var attrs = op['attributes'];
+            if (attrs['list'] == 'checked' || attrs['checked'] == true) {
+              isChecklistOp = true;
+              isChecked = true;
+            } else if (attrs['list'] == 'unchecked') {
+              isChecklistOp = true;
+              isChecked = false;
+            }
           }
-      }
 
-      if (isJson && parsed is List) {
-         int currentLineIndex = 0;
-         for (var op in parsed) {
-           if (op is Map && op['insert'] is String) {
-             String text = op['insert'];
-             int newlines = '\n'.allMatches(text).length;
-             
-             // Check for checkbox attribute
-             // Quill: attributes on '\n' apply to the line it terminates.
-             bool isChecked = false;
-             if (op.containsKey('attributes')) {
-                var attrs = op['attributes'];
-                if (attrs is Map && (attrs['list'] == 'checked' || attrs['checked'] == true)) {
-                   isChecked = true;
+          if (newlines > 0) {
+            for (int j = 0; j < newlines; j++) {
+              int lineIdx = currentLineIndex + j;
+              if (lineIdx < allLines.length) {
+                if (isChecklistOp) {
+                  isCheckboxLine[lineIdx] = true;
+                  if (isChecked) {
+                    checkedState[lineIdx] = true;
+                  }
                 }
-             }
-
-             if (isChecked) {
-                // Apply to all lines terminated by this op
-                // Usually just one '\n' per such op, but loop to be safe
-                for (int j = 0; j < newlines; j++) {
-                   if (currentLineIndex + j < checkedState.length) {
-                      checkedState[currentLineIndex + j] = true;
-                   }
-                }
-             }
-             currentLineIndex += newlines;
-           }
-         }
+              }
+            }
+            currentLineIndex += newlines;
+          }
+        }
       }
-    } catch (_) {}
+    }
 
-    // 3. Merge with Markdown Style
-    // If line explicitly has "- [x]", it overrides or is already true.
+    // 3. Check for Markdown / explicit checkbox syntax in lines
+    final checkboxMarkerRegExp =
+        RegExp(r'^(?:-\s*|[*]\s*|•\s*|\d+\.\s*)?(?:\[[ xX]\]|[☐☑])');
     for (int i = 0; i < allLines.length; i++) {
-       if (allLines[i].toLowerCase().contains('- [x]')) {
-         checkedState[i] = true;
-       }
+      final trimmed = allLines[i].trim();
+      if (checkboxMarkerRegExp.hasMatch(trimmed) ||
+          trimmed.contains('[ ]') ||
+          trimmed.contains('[x]') ||
+          trimmed.contains('[X]') ||
+          trimmed.contains('☐') ||
+          trimmed.contains('☑')) {
+        isCheckboxLine[i] = true;
+        final l = trimmed.toLowerCase();
+        if (l.contains('[x]') || l.contains('☑')) {
+          checkedState[i] = true;
+        }
+      }
     }
 
     // 4. Build Display Items
-    // Auto-detect checklist mode or force if attributes found
-    bool hasMarkdown = allLines.any((l) => l.trim().startsWith('- ['));
-    bool hasAttributes = checkedState.any((b) => b);
-    
+    final checkboxRegExp =
+        RegExp(r'^(?:-\s*|[*]\s*|•\s*|\d+\.\s*)?(?:\[[ xX]\]|[☐☑])\s*');
+    final bulletRegExp = RegExp(r'^(?:-\s*|[*]\s*|•\s*)');
+
     List<int> itemIndices = [];
     for (int i = 0; i < allLines.length; i++) {
       if (allLines[i].trim().isEmpty) continue;
-      
-      // If we found rich text attributes, treat everything as potentially a list item?
-      // Or only if we have Markdown marker?
-      // Better strategy: If using Attributes, show all non-empty lines? 
-      // Or only those with attributes?
-      // User might have "Title" then "List".
-      // Let's replicate strict filtering:
-      // If hasMarkdown, show only "- [". 
-      // If hasAttributes (Quill list), show lines that match list style?
-      // Ideally show all lines that "look" like list items.
-      
-      if (hasMarkdown) {
-         if (allLines[i].trim().startsWith('- [')) itemIndices.add(i);
-      } else if (hasAttributes) {
-         // If generic text with some checks, maybe show all?
-         itemIndices.add(i);
-      } else {
-         // Fallback default: show all
-         itemIndices.add(i);
-      }
+      itemIndices.add(i);
     }
 
     final theme = Theme.of(context);
@@ -318,18 +439,25 @@ class ChecklistWidget extends StatelessWidget {
     final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
     final dimmedColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
 
-    final bool isHabit = note.title.toLowerCase().contains('routine') || note.title.toLowerCase().contains('habit');
+    final bool isHabit = note.title.toLowerCase().contains('routine') ||
+        note.title.toLowerCase().contains('habit');
     final Color accentColor = textColor; // Monochrome
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? theme.cardColor : Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: note.isPinned 
-            ? Border.all(color: textColor.withOpacity(0.8), width: 4.0) 
-            : (isDark ? Border.all(color: Colors.white24, width: 2.0) : Border.all(color: theme.dividerColor, width: 2.0)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+        border: note.isPinned
+            ? Border.all(color: textColor, width: 2.0)
+            : (isDark
+                ? Border.all(color: Colors.white12, width: 1.0)
+                : Border.all(
+                    color: Colors.black.withOpacity(0.08), width: 1.0)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -341,14 +469,17 @@ class ChecklistWidget extends StatelessWidget {
               Expanded(
                 child: Row(
                   children: [
-                    if (isHabit) 
-                      Padding(padding: const EdgeInsets.only(right: 6), child: Icon(Icons.refresh, color: dimmedColor, size: 14)),
+                    if (isHabit)
+                      Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Icon(Icons.refresh,
+                              color: dimmedColor, size: 14)),
                     Flexible(
                       child: Text(
-                        isHabit ? note.title.toUpperCase() : note.title, 
+                        isHabit ? note.title.toUpperCase() : note.title,
                         style: TextStyle(
-                          color: isHabit ? dimmedColor : textColor, 
-                          fontSize: isHabit ? 12 : 16, 
+                          color: isHabit ? dimmedColor : textColor,
+                          fontSize: isHabit ? 12 : 16,
                           fontWeight: FontWeight.bold,
                           letterSpacing: isHabit ? 1.5 : 0.0,
                         ),
@@ -362,7 +493,6 @@ class ChecklistWidget extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 15),
-          
           if (itemIndices.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -370,26 +500,60 @@ class ChecklistWidget extends StatelessWidget {
             )
           else
             Column(
-              children: itemIndices.take(5).map((index) {
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: (note.isExpanded ? itemIndices : itemIndices.take(6))
+                  .map((index) {
                 final line = allLines[index];
-                // Correctly determine checked status from both sources
+                final bool isCheckbox = isCheckboxLine[index];
                 final bool isDone = checkedState[index];
-                
-                // Clean text for display
-                String cleanText = line.replaceAll(RegExp(r'- \[[ x]\] '), '').trim();
-                // If it was attribute-checked, 'line' might allow be "Text", so cleanText is same.
-                
+
+                // If NOT a checkbox line, render strictly as clean text/header without checkbox circle
+                if (!isCheckbox) {
+                  final isHeader = line.trim().startsWith('#');
+                  final cleanHeader = isHeader
+                      ? line.replaceAll(RegExp(r'^#+\s*'), '').trim()
+                      : line.trim();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8, top: 4),
+                    child: Text(
+                      cleanHeader,
+                      style: TextStyle(
+                        color: isHeader ? textColor : dimmedColor,
+                        fontSize: isHeader ? 14 : 13,
+                        fontWeight:
+                            isHeader ? FontWeight.bold : FontWeight.w500,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }
+
+                // Clean text for checkbox display
+                String cleanText = line
+                    .replaceAll(checkboxRegExp, '')
+                    .replaceAll(bulletRegExp, '')
+                    .trim();
+                if (cleanText.isEmpty) cleanText = line.trim();
+
                 return GestureDetector(
                   onTap: () => _toggleItem(context, index, allLines[index]),
                   behavior: HitTestBehavior.opaque,
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Icon(
-                          isDone ? CupertinoIcons.check_mark_circled_solid : CupertinoIcons.circle,
-                          size: 22,
-                          color: isDone ? accentColor : dimmedColor,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Icon(
+                            isDone
+                                ? CupertinoIcons.check_mark_circled_solid
+                                : CupertinoIcons.circle,
+                            size: 22,
+                            color: isDone ? accentColor : dimmedColor,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -397,12 +561,15 @@ class ChecklistWidget extends StatelessWidget {
                             cleanText,
                             style: TextStyle(
                               color: isDone ? dimmedColor : textColor,
-                              fontSize: 15,
-                              decoration: isDone ? TextDecoration.lineThrough : null,
+                              fontSize: note.fontSize ?? 14.0,
+                              fontWeight:
+                                  isDone ? FontWeight.normal : FontWeight.w500,
+                              decoration:
+                                  isDone ? TextDecoration.lineThrough : null,
                               decorationColor: dimmedColor,
                               height: 1.2,
                             ),
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -432,39 +599,63 @@ class QuoteWidget extends StatelessWidget {
     final bgColor = isDark ? theme.cardColor : Colors.white;
 
     return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: bgColor, 
-        borderRadius: BorderRadius.circular(24),
-        border: note.isPinned 
-            ? Border.all(color: textColor.withOpacity(0.8), width: 4.0) 
-            : (isDark ? Border.all(color: Colors.white24, width: 2.0) : Border.all(color: theme.dividerColor, width: 2.0)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+        color: bgColor,
+        borderRadius: BorderRadius.circular(22),
+        border: note.isPinned
+            ? Border.all(color: textColor, width: 2.0)
+            : (isDark
+                ? Border.all(color: Colors.white12, width: 1.0)
+                : Border.all(
+                    color: Colors.black.withOpacity(0.08), width: 1.0)),
       ),
-      child: Stack(
-        children: [
-             
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min, // FIX: Prevent grid crash
+      child: Container(
+        padding: const EdgeInsets.only(left: 14),
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: isDark ? Colors.white70 : Colors.black87,
+              width: 3.0,
+            ),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
               children: [
-                 Icon(Icons.format_quote, size: 30, color: textColor),
-                 const SizedBox(height: 10),
+                Icon(CupertinoIcons.quote_bubble_fill,
+                    size: 14, color: textColor.withOpacity(0.6)),
+                const SizedBox(width: 6),
                 Text(
-                  note.plainTextContent.replaceAll('"', '').trim(),
-                  textAlign: TextAlign.center,
+                  "QUOTE",
                   style: TextStyle(
-                    color: textColor,
-                    fontSize: 16,
-                    height: 1.4,
-                    fontWeight: FontWeight.w500,
-                    fontFamily: 'Georgia',
+                    color: textColor.withOpacity(0.6),
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              "\"${note.plainTextContent.replaceAll('"', '').trim()}\"",
+              style: TextStyle(
+                color: textColor,
+                fontSize: 15,
+                height: 1.4,
+                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -484,11 +675,16 @@ class TypographyWidget extends StatelessWidget {
     // Use custom color if available
     if (note.backgroundColor != null && note.backgroundColor != 0) {
       return Container(
+        width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Color(note.backgroundColor!),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: note.isPinned ? Colors.white.withOpacity(0.9) : Colors.white24, width: note.isPinned ? 4.0 : 2.0),
+          border: Border.all(
+              color: note.isPinned
+                  ? Colors.white.withOpacity(0.9)
+                  : Colors.white24,
+              width: note.isPinned ? 4.0 : 2.0),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -501,7 +697,10 @@ class TypographyWidget extends StatelessWidget {
                 Expanded(
                   child: Text(
                     note.title.isNotEmpty ? note.title : "Untitled",
-                    style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.white, fontSize: 18),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        fontSize: 18),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -511,9 +710,14 @@ class TypographyWidget extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               note.plainTextContent,
-              style: const TextStyle(color: Colors.white70, height: 1.4, fontSize: 15),
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  color: Colors.white70,
+                  height: 1.4,
+                  fontSize: note.fontSize ?? 15.0),
+              maxLines: note.isExpanded ? null : 4,
+              overflow: note.isExpanded
+                  ? TextOverflow.visible
+                  : TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -524,13 +728,17 @@ class TypographyWidget extends StatelessWidget {
     final bgColor = isDark ? theme.cardColor : Colors.white;
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(24),
-        border: note.isPinned 
-            ? Border.all(color: textColor.withOpacity(0.8), width: 4.0) 
-            : (isDark ? Border.all(color: Colors.white24, width: 2.0) : Border.all(color: theme.dividerColor, width: 2.0)),
+        border: note.isPinned
+            ? Border.all(color: textColor, width: 2.0)
+            : (isDark
+                ? Border.all(color: Colors.white12, width: 1.0)
+                : Border.all(
+                    color: Colors.black.withOpacity(0.08), width: 1.0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -543,19 +751,26 @@ class TypographyWidget extends StatelessWidget {
               Expanded(
                 child: Text(
                   note.title.isNotEmpty ? note.title : "Untitled",
-                  style: TextStyle(fontWeight: FontWeight.w800, color: textColor, fontSize: 18),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: textColor,
+                      fontSize: 18),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              ],
+            ],
           ),
           const SizedBox(height: 8),
           Text(
             note.plainTextContent,
-            style: TextStyle(color: dimmedColor, height: 1.4, fontSize: 15),
-            maxLines: 4,
-            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                color: dimmedColor,
+                height: 1.4,
+                fontSize: note.fontSize ?? 15.0),
+            maxLines: note.isExpanded ? null : 4,
+            overflow:
+                note.isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -567,20 +782,35 @@ class TypographyWidget extends StatelessWidget {
 class PolaroidWidget extends StatelessWidget {
   final Note note;
   final String imagePath;
-  const PolaroidWidget({super.key, required this.note, required this.imagePath});
+  const PolaroidWidget(
+      {super.key, required this.note, required this.imagePath});
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white, 
+        color: Colors.white,
         borderRadius: BorderRadius.circular(4),
-        border: note.isPinned ? Border.all(color: Colors.black, width: 4.0) : null,
+        border:
+            note.isPinned ? Border.all(color: Colors.black, width: 4.0) : null,
       ),
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 40),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [ // FIX: min size
-          AspectRatio(aspectRatio: 1, child: Container(color: Colors.grey[200], child: Image.file(File(imagePath), fit: BoxFit.cover, errorBuilder: (_,__,___)=>const Icon(Icons.broken_image)))),
-          const SizedBox(height: 10),
-          Text(note.title, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontFamily: 'Courier')),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // FIX: min size
+        AspectRatio(
+            aspectRatio: 1,
+            child: Container(
+                color: Colors.grey[200],
+                child: Image.file(File(imagePath),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        const Icon(Icons.broken_image)))),
+        const SizedBox(height: 10),
+        Text(note.title,
+            style: const TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Courier')),
       ]),
     );
   }
@@ -593,14 +823,22 @@ class AudioWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20), // Match GlassContainer default
-        border: note.isPinned ? Border.all(color: Colors.white.withOpacity(0.8), width: 4.0) : null,
+        borderRadius: BorderRadius.circular(22),
+        border: note.isPinned
+            ? Border.all(color: Colors.white, width: 2.0)
+            : Border.all(color: Colors.white12, width: 1.0),
       ),
-      child: GlassContainer(
-        padding: const EdgeInsets.all(15),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [ // FIX: min size
-          const Row(children: [Icon(CupertinoIcons.mic, color: Colors.white), SizedBox(width: 10), Text("Voice Note", style: TextStyle(color: Colors.white))]),
+      child: const GlassContainer(
+        padding: EdgeInsets.all(15),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // FIX: min size
+          Row(children: [
+            Icon(CupertinoIcons.mic, color: Colors.white),
+            SizedBox(width: 10),
+            Text("Voice Note", style: TextStyle(color: Colors.white))
+          ]),
         ]),
       ),
     );

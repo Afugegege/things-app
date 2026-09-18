@@ -11,6 +11,8 @@ import 'providers/tasks_provider.dart';
 import 'providers/money_provider.dart';
 import 'providers/events_provider.dart';
 
+import 'core/action_registry.dart';
+import 'core/action_definitions.dart';
 
 import 'services/storage_service.dart';
 import 'screens/auth/login_screen.dart';
@@ -20,6 +22,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
   await StorageService.init();
+
+  // Initialize the Action Registry with all built-in action definitions
+  registerAllActions();
+  ActionRegistry.initialize();
 
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,

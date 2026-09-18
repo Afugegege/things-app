@@ -39,6 +39,7 @@ dependencies:
   # We use overrides (below) to fix the intl conflict.
   flutter_quill: ^10.7.3
   flutter_quill_extensions: ^10.7.3
+  dart_quill_delta: ^10.8.3
   image_picker: ^1.0.7
 
   # --- Features ---
@@ -61,6 +62,22 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.1
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/app_icon.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/icons/app_icon.png"
+  windows:
+    generate: true
+    image_path: "assets/icons/app_icon.png"
+  macos:
+    generate: true
+    image_path: "assets/icons/app_icon.png"
 
 # [CRITICAL FIX]
 # This forces all packages to use the version of intl provided by the SDK
@@ -72,3 +89,5 @@ flutter:
 
   assets:
     - .env
+    - assets/icons/
+

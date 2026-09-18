@@ -10,9 +10,12 @@ class MosaicWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        border: note.isPinned ? Border.all(color: Colors.white.withOpacity(0.9), width: 4.0) : null,
+        borderRadius: BorderRadius.circular(22),
+        border: note.isPinned
+            ? Border.all(color: Colors.white, width: 2.0)
+            : Border.all(color: Colors.white12, width: 1.0),
       ),
       child: GlassContainer(
         padding: EdgeInsets.zero,
@@ -23,7 +26,7 @@ class MosaicWidget extends StatelessWidget {
               flex: 1,
               child: note.backgroundImage != null
                   ? Image.file(File(note.backgroundImage!), fit: BoxFit.cover, height: double.infinity)
-                  : Container(color: Colors.white10, child: const Icon(Icons.image)),
+                  : Container(color: Colors.white10, child: const Icon(Icons.image, color: Colors.white70)),
             ),
             // Right: Content
             Expanded(
@@ -45,7 +48,7 @@ class MosaicWidget extends StatelessWidget {
                     LinearProgressIndicator(
                       value: 0.6,
                       backgroundColor: Colors.white10,
-                      valueColor: const AlwaysStoppedAnimation(Colors.blueAccent),
+                      valueColor: const AlwaysStoppedAnimation(Colors.white),
                       minHeight: 4,
                       borderRadius: BorderRadius.circular(2),
                     ),

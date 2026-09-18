@@ -1,7 +1,6 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'dashboard_drawer.dart'; 
+import 'dashboard_drawer.dart';
 
 class LifeAppScaffold extends StatelessWidget {
   final String title;
@@ -14,8 +13,8 @@ class LifeAppScaffold extends StatelessWidget {
   final VoidCallback? onOpenDrawer; // [ADDED] Allow opening parent drawer
 
   const LifeAppScaffold({
-    super.key, 
-    required this.title, 
+    super.key,
+    required this.title,
     required this.child,
     this.floatingActionButton,
     this.actions,
@@ -32,40 +31,44 @@ class LifeAppScaffold extends StatelessWidget {
 
     return Theme(
       data: themeData.copyWith(
-        bottomSheetTheme: const BottomSheetThemeData(backgroundColor: Colors.transparent),
+        bottomSheetTheme:
+            const BottomSheetThemeData(backgroundColor: Colors.transparent),
       ),
       child: Scaffold(
         backgroundColor: themeData.scaffoldBackgroundColor,
-        // If external drawer control is provided, do NOT attach a local drawer, 
+        // If external drawer control is provided, do NOT attach a local drawer,
         // effectively disabling the inner drawer so it doesn't conflict or use resources.
-        drawer: (useDrawer && onOpenDrawer == null) ? const DashboardDrawer() : null,
+        drawer: (useDrawer && onOpenDrawer == null)
+            ? const DashboardDrawer()
+            : null,
         floatingActionButton: floatingActionButton,
         bottomSheet: bottomSheet, // [ADDED] Pass to Scaffold
-      body: Stack(
-        children: [
-          // 1. Content Layer
-          Positioned.fill(
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 100), // Space for header
-                child: child,
+        body: Stack(
+          children: [
+            // 1. Content Layer
+            Positioned.fill(
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 100), // Space for header
+                  child: child,
+                ),
               ),
             ),
-          ),
 
-          // 2. Seamless Header Layer (Transparent)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 100,
-            child: Container(
-              color: themeData.scaffoldBackgroundColor, // Seamless match
-              alignment: Alignment.bottomCenter,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-              child: SafeArea(
-                bottom: false,
+            // 2. Seamless Header Layer (Transparent)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 100,
+              child: Container(
+                color: themeData.scaffoldBackgroundColor, // Seamless match
+                alignment: Alignment.bottomCenter,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                child: SafeArea(
+                  bottom: false,
                   child: NavigationToolbar(
                     centerMiddle: true,
                     middleSpacing: 20.0,
@@ -75,7 +78,7 @@ class LifeAppScaffold extends StatelessWidget {
                       style: themeData.textTheme.bodyLarge?.copyWith(
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: 1.0, 
+                        letterSpacing: 1.0,
                       ),
                       textAlign: TextAlign.center,
                       maxLines: 1,
@@ -86,11 +89,11 @@ class LifeAppScaffold extends StatelessWidget {
                       children: actions ?? [],
                     ),
                   ),
+                ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -127,12 +130,16 @@ class LifeAppScaffold extends StatelessWidget {
   Widget _buildHeaderIcon(BuildContext context, IconData icon) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(8),
+      width: 36,
+      height: 36,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: theme.iconTheme.color?.withOpacity(0.1),
         shape: BoxShape.circle,
       ),
-      child: Icon(icon, color: theme.iconTheme.color, size: 20),
+      child: Center(
+        child: Icon(icon, color: theme.iconTheme.color, size: 20),
+      ),
     );
   }
 }

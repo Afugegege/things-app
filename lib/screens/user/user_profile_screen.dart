@@ -31,94 +31,128 @@ class UserProfileScreen extends StatelessWidget {
           children: [
             // 1. Profile Header
             StreamBuilder<AuthState>(
-              stream: AuthService.authStateChanges,
-              builder: (context, snapshot) {
-                final user = AuthService.currentUser;
-                final isLoggedIn = user != null;
-                final displayName = user?.userMetadata?['full_name'] ?? user?.email ?? userProvider.user.name;
+                stream: AuthService.authStateChanges,
+                builder: (context, snapshot) {
+                  final user = AuthService.currentUser;
+                  final isLoggedIn = user != null;
+                  final displayName = user?.userMetadata?['full_name'] ??
+                      user?.email ??
+                      userProvider.user.name;
 
-                return Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
-                          border: Border.all(color: textColor.withOpacity(0.2), width: 2),
-                          image: (isLoggedIn && user?.userMetadata?['avatar_url'] != null)
-                             ? DecorationImage(image: NetworkImage(user!.userMetadata!['avatar_url']), fit: BoxFit.cover)
-                             : null
+                  return Center(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isDark
+                                  ? Colors.white.withOpacity(0.1)
+                                  : Colors.black.withOpacity(0.05),
+                              border: Border.all(
+                                  color: textColor.withOpacity(0.2), width: 2),
+                              image: (isLoggedIn &&
+                                      user.userMetadata?['avatar_url'] != null)
+                                  ? DecorationImage(
+                                      image: NetworkImage(
+                                          user.userMetadata!['avatar_url']),
+                                      fit: BoxFit.cover)
+                                  : null),
+                          child: (isLoggedIn &&
+                                  user.userMetadata?['avatar_url'] != null)
+                              ? null
+                              : Icon(CupertinoIcons.person_solid,
+                                  size: 50, color: textColor),
                         ),
-                        child: (isLoggedIn && user?.userMetadata?['avatar_url'] != null) 
-                            ? null 
-                            : Icon(CupertinoIcons.person_solid, size: 50, color: textColor),
-                      ),
-                      const SizedBox(height: 15),
-                      Text(displayName, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor)),
-                      if (isLoggedIn)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(user!.email ?? "", style: TextStyle(color: secondaryTextColor, fontSize: 12)),
-                        ),
-                      const SizedBox(height: 15),
-                      
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.amber,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              "PRO MEMBER",
-                              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
-                            ),
+                        const SizedBox(height: 15),
+                        Text(displayName,
+                            style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: textColor)),
+                        if (isLoggedIn)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(user.email ?? "",
+                                style: TextStyle(
+                                    color: secondaryTextColor, fontSize: 12)),
                           ),
-                          const SizedBox(width: 10),
-                          if (isLoggedIn)
-                             GestureDetector(
-                               onTap: () async {
-                                 await AuthService.signOut();
-                                 Navigator.popUntil(context, (r) => r.isFirst);
-                                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
-                               },
-                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.redAccent.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: Colors.redAccent)
+                        const SizedBox(height: 15),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.amber,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                "PRO MEMBER",
+                                style: TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            if (isLoggedIn)
+                              GestureDetector(
+                                onTap: () async {
+                                  await AuthService.signOut();
+                                  Navigator.popUntil(context, (r) => r.isFirst);
+                                  Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) => const LoginScreen()));
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 4),
+                                  decoration: BoxDecoration(
+                                      color: Colors.redAccent.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border:
+                                          Border.all(color: Colors.redAccent)),
+                                  child: const Text("Sign Out",
+                                      style: TextStyle(
+                                          color: Colors.redAccent,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12)),
                                 ),
-                                child: const Text("Sign Out", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 12)),
-                               ),
-                             )
-                          else
-                             GestureDetector(
-                               onTap: () {
-                                 Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
-                               },
-                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: theme.primaryColor.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: theme.primaryColor)
+                              )
+                            else
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) => const LoginScreen()));
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 4),
+                                  decoration: BoxDecoration(
+                                      color:
+                                          theme.primaryColor.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                          color: theme.primaryColor)),
+                                  child: Text("Sign In",
+                                      style: TextStyle(
+                                          color: theme.primaryColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12)),
                                 ),
-                                child: Text("Sign In", style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.bold, fontSize: 12)),
-                               ),
-                             )
-
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              }
-            ),
+                              )
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }),
 
             const SizedBox(height: 40),
 
@@ -126,7 +160,12 @@ class UserProfileScreen extends StatelessWidget {
             // 2. Settings Section
             Padding(
               padding: const EdgeInsets.only(left: 20),
-              child: Text("SETTINGS", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: secondaryTextColor, letterSpacing: 2)),
+              child: Text("SETTINGS",
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: secondaryTextColor,
+                      letterSpacing: 2)),
             ),
             const SizedBox(height: 15),
             _buildSettingsTile(
@@ -134,9 +173,9 @@ class UserProfileScreen extends StatelessWidget {
               icon: CupertinoIcons.cloud_upload,
               title: "Backup Data",
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Backing up to Cloud... Done."), backgroundColor: Colors.green)
-                );
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text("Backing up to Cloud... Done."),
+                    backgroundColor: Colors.green));
               },
             ),
 
@@ -146,89 +185,17 @@ class UserProfileScreen extends StatelessWidget {
               title: "Privacy & Security",
               onTap: () {},
             ),
-
-            const SizedBox(height: 30),
-
-            // 3. AI Memory Section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 20),
-                  child: Text("AI MEMORY", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: secondaryTextColor, letterSpacing: 2)),
-                ),
-                IconButton(
-                  icon: Icon(Icons.add_circle, color: textColor),
-                  onPressed: () => _showAddMemoryDialog(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            
-            if (user.aiMemory.isEmpty)
-              Center(child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Text("Teach AI about you to personalize suggestions.", style: TextStyle(color: secondaryTextColor, fontSize: 12)),
-              )),
-
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: user.aiMemory.length,
-              itemBuilder: (context, index) {
-                final memory = user.aiMemory[index];
-                return Dismissible(
-                  key: Key(memory),
-                  direction: DismissDirection.endToStart,
-                  background: Container(
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20),
-                    margin: const EdgeInsets.only(bottom: 10),
-                    decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(15)),
-                    child: const Icon(Icons.delete, color: Colors.white),
-                  ),
-                  onDismissed: (_) {
-                    userProvider.removeMemory(memory);
-                  },
-                  child: GestureDetector( // [NEW] Wrap in GestureDetector to Edit
-                    onTap: () => _showEditMemoryDialog(context, memory, userProvider),
-                    child: GlassContainer(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 10),
-                    height: 60,
-                    borderRadius: 15,
-                    opacity: isDark ? 0.1 : 0.05,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        children: [
-                          Icon(Icons.psychology, color: userProvider.accentColor, size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              memory,
-                              style: TextStyle(color: textColor),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(Icons.edit, size: 16, color: secondaryTextColor.withOpacity(0.5)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  ),
-                );
-              },
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSettingsTile(BuildContext context, {required IconData icon, required String title, required VoidCallback onTap, Widget? trailing}) {
+  Widget _buildSettingsTile(BuildContext context,
+      {required IconData icon,
+      required String title,
+      required VoidCallback onTap,
+      Widget? trailing}) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
@@ -246,132 +213,19 @@ class UserProfileScreen extends StatelessWidget {
             children: [
               Icon(icon, color: textColor, size: 22),
               const SizedBox(width: 15),
-              Text(title, style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w600)),
+              Text(title,
+                  style: TextStyle(
+                      color: textColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600)),
               const Spacer(),
-              if (trailing != null) ...[trailing!, const SizedBox(width: 10)],
-              Icon(Icons.chevron_right, color: theme.textTheme.bodyMedium?.color),
+              if (trailing != null) ...[trailing, const SizedBox(width: 10)],
+              Icon(Icons.chevron_right,
+                  color: theme.textTheme.bodyMedium?.color),
             ],
           ),
         ),
       ),
     );
   }
-
-  void _showAddMemoryDialog(BuildContext context) {
-    final ctrl = TextEditingController();
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).cardColor,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
-      builder: (ctx) {
-        final theme = Theme.of(context);
-        final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
-        final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
-        final isDark = theme.brightness == Brightness.dark;
-        final inputBg = isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05);
-
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 40, top: 25, left: 25, right: 25),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2))),
-              const SizedBox(height: 25),
-              Text("TEACH AI A NEW FACT", style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2)),
-              const SizedBox(height: 20),
-              
-              CupertinoTextField(
-                controller: ctrl,
-                placeholder: "e.g., I am allergic to peanuts",
-                placeholderStyle: TextStyle(color: secondaryTextColor),
-                style: TextStyle(color: textColor),
-                decoration: BoxDecoration(color: inputBg, borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.all(16),
-                autofocus: true,
-              ),
-              
-              const SizedBox(height: 20),
-              
-              SizedBox(
-                width: double.infinity,
-                child: CupertinoButton(
-                  color: textColor,
-                  borderRadius: BorderRadius.circular(15),
-                  child: Text("Add Memory", style: TextStyle(color: theme.scaffoldBackgroundColor, fontWeight: FontWeight.bold)),
-                  onPressed: () {
-                    if (ctrl.text.isNotEmpty) {
-                      Provider.of<UserProvider>(context, listen: false).addMemory(ctrl.text);
-                    }
-                    Navigator.pop(ctx);
-                  },
-                ),
-              )
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // [NEW] Edit Dialog
-  void _showEditMemoryDialog(BuildContext context, String oldMemory, UserProvider provider) {
-    final ctrl = TextEditingController(text: oldMemory);
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).cardColor,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
-      builder: (ctx) {
-        final theme = Theme.of(context);
-        final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
-        final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
-        final isDark = theme.brightness == Brightness.dark;
-        final inputBg = isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05);
-
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 40, top: 25, left: 25, right: 25),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2))),
-              const SizedBox(height: 25),
-              Text("EDIT MEMORY", style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2)),
-              const SizedBox(height: 20),
-              
-              CupertinoTextField(
-                controller: ctrl,
-                placeholder: "Memory...",
-                placeholderStyle: TextStyle(color: secondaryTextColor),
-                style: TextStyle(color: textColor),
-                decoration: BoxDecoration(color: inputBg, borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.all(16),
-                autofocus: true,
-              ),
-              
-              const SizedBox(height: 20),
-              
-              SizedBox(
-                width: double.infinity,
-                child: CupertinoButton(
-                  color: textColor,
-                  borderRadius: BorderRadius.circular(15),
-                  child: Text("Update", style: TextStyle(color: theme.scaffoldBackgroundColor, fontWeight: FontWeight.bold)),
-                  onPressed: () {
-                    if (ctrl.text.isNotEmpty && ctrl.text != oldMemory) {
-                      provider.updateMemory(oldMemory, ctrl.text);
-                    }
-                    Navigator.pop(ctx);
-                  },
-                ),
-              )
-            ],
-          ),
-        );
-      },
-    );
-  }
 }
-

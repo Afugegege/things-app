@@ -2,29 +2,35 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/note_model.dart';
-import '../services/storage_service.dart'; 
+import '../services/storage_service.dart';
 
 import '../data/sample_data.dart'; // Import Sample Data
 
 class NotesProvider extends ChangeNotifier {
-  List<String> _folders = ['All', 'General', 'Personal', 'Work', 'Ideas', 'Travel'];
+  final List<String> _folders = [
+    'All',
+    'General',
+    'Personal',
+    'Work',
+    'Ideas',
+  ];
   String _selectedFolder = 'All';
   List<Note> _notes = [];
 
   NotesProvider() {
-    _loadData();
+    loadData();
   }
 
-  void _loadData() {
+  void loadData() {
     final savedNotes = StorageService.loadNotes();
-    if (savedNotes.isNotEmpty) {
-      _notes = savedNotes;
-    }
-    
-    // Auto-seed sample notes if the notes list is very small
-    if (_notes.length < 2) {
-      seedSampleData();
-    }
+    _notes = savedNotes;
+
+    // Remove legacy sample template notes if present
+    _notes.removeWhere((n) =>
+        (n.title == 'Welcome to Things' && n.content.contains('digital workspace')) ||
+        (n.title == 'Morning Checklist' && n.content.contains('Yoga (15 mins)')) ||
+        (n.title == 'Project Phoenix' && n.content.contains('Launch MVP by August')));
+    StorageService.saveNotes(_notes);
     // Load folders
     final savedFolders = StorageService.loadFolders();
     if (savedFolders.isNotEmpty) {
@@ -32,18 +38,17 @@ class NotesProvider extends ChangeNotifier {
         if (!_folders.contains(f)) _folders.add(f);
       }
     }
-    
+
     // Ensure folders from notes exist (legacy support)
     for (var note in _notes) {
       if (!_folders.contains(note.folder)) {
         _folders.add(note.folder);
       }
-      }
+    }
 
-    
     // Load Folder Widgets
     _folderWidgets = StorageService.loadFolderWidgets();
-    
+
     notifyListeners();
   }
 
@@ -94,7 +99,7 @@ class NotesProvider extends ChangeNotifier {
 
     String mergedTitle = notesToMerge.map((n) => n.title).join(" + ");
     List<dynamic> mergedOps = [];
-    
+
     for (var i = 0; i < notesToMerge.length; i++) {
       final note = notesToMerge[i];
       try {
@@ -106,7 +111,7 @@ class NotesProvider extends ChangeNotifier {
 
       if (i < notesToMerge.length - 1) {
         mergedOps.add({
-          "insert": "\n\n——— Merged (${note.title}) ———\n\n", 
+          "insert": "\n\n——— Merged (${note.title}) ———\n\n",
           "attributes": {"bold": true, "color": "#cccccc"}
         });
       }
@@ -126,7 +131,7 @@ class NotesProvider extends ChangeNotifier {
 
     _notes.removeWhere((n) => ids.contains(n.id));
     _notes.insert(0, newNote);
-    
+
     StorageService.saveNotes(_notes);
     notifyListeners();
   }
@@ -138,7 +143,7 @@ class NotesProvider extends ChangeNotifier {
       _folders.add(folder);
       StorageService.saveFolders(_folders);
       // Init empty widgets
-      _folderWidgets[folder] = []; 
+      _folderWidgets[folder] = [];
       StorageService.saveFolderWidgets(_folderWidgets);
       notifyListeners();
     }
@@ -159,36 +164,39 @@ class NotesProvider extends ChangeNotifier {
 
   // --- NOTE ACTIONS ---
 
-  void selectFolder(String f) { _selectedFolder = f; notifyListeners(); }
-  
-  void addNote(Note n) { 
-    _notes.insert(0, n); 
-    StorageService.saveNotes(_notes); 
-    notifyListeners(); 
+  void selectFolder(String f) {
+    _selectedFolder = f;
+    notifyListeners();
   }
-  
-  void updateNote(Note n) { 
-    final i = _notes.indexWhere((x) => x.id == n.id); 
-    if (i != -1) { 
-      _notes[i] = n; 
-      StorageService.saveNotes(_notes); 
-      notifyListeners(); 
-    } 
+
+  void addNote(Note n) {
+    _notes.insert(0, n);
+    StorageService.saveNotes(_notes);
+    notifyListeners();
   }
-  
-  void deleteNotes(String id) { 
-    _notes.removeWhere((n) => n.id == id); 
-    StorageService.saveNotes(_notes); 
-    notifyListeners(); 
+
+  void updateNote(Note n) {
+    final i = _notes.indexWhere((x) => x.id == n.id);
+    if (i != -1) {
+      _notes[i] = n;
+      StorageService.saveNotes(_notes);
+      notifyListeners();
+    }
+  }
+
+  void deleteNotes(String id) {
+    _notes.removeWhere((n) => n.id == id);
+    StorageService.saveNotes(_notes);
+    notifyListeners();
   }
 
   void batchMoveNotes(List<String> ids, String newFolder) {
     bool changed = false;
     for (var i = 0; i < _notes.length; i++) {
-       if (ids.contains(_notes[i].id)) {
-           _notes[i] = _notes[i].copyWith(folder: newFolder);
-           changed = true;
-       }
+      if (ids.contains(_notes[i].id)) {
+        _notes[i] = _notes[i].copyWith(folder: newFolder);
+        changed = true;
+      }
     }
     if (changed) {
       StorageService.saveNotes(_notes);
@@ -197,21 +205,22 @@ class NotesProvider extends ChangeNotifier {
   }
 
   // --- FOLDER WIDGETS CONFIG ---
-  
+
   Map<String, List<String>> _folderWidgets = {};
-  
+
   List<String> getWidgetsForFolder(String folder) {
-    if (folder == 'All') {
-       // 'All' shows everything by default (controlled by main filtering)
-       return ['Calendar','Tasks','Money','Roam','Flashcards','Bucket']; 
+    if (_folderWidgets.containsKey(folder)) {
+      return _folderWidgets[folder]!;
     }
-    return _folderWidgets[folder] ?? []; // Default to empty if not configured
+    if (folder == 'All') {
+      // Default widgets on dashboard
+      return ['Money', 'Tasks', 'Events'];
+    }
+    return [];
   }
 
   void toggleFolderWidget(String folder, String widgetId) {
-    if (folder == 'All') return;
-    
-    List<String> current = List.from(_folderWidgets[folder] ?? []);
+    List<String> current = List.from(getWidgetsForFolder(folder));
     if (current.contains(widgetId)) {
       current.remove(widgetId);
     } else {
@@ -222,12 +231,31 @@ class NotesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void restoreNote(Note note, {int? index}) {
+    if (index != null && index >= 0 && index <= _notes.length) {
+      _notes.insert(index, note);
+    } else {
+      _notes.insert(0, note);
+    }
+    StorageService.saveNotes(_notes);
+    notifyListeners();
+  }
+
   // --- EXISTING METHODS ---
-  
+
   void togglePin(String id) {
     final index = _notes.indexWhere((n) => n.id == id);
     if (index != -1) {
       _notes[index] = _notes[index].copyWith(isPinned: !_notes[index].isPinned);
+      StorageService.saveNotes(_notes);
+      notifyListeners();
+    }
+  }
+
+  void toggleNoteExpansion(String id) {
+    final index = _notes.indexWhere((n) => n.id == id);
+    if (index != -1) {
+      _notes[index] = _notes[index].copyWith(isExpanded: !_notes[index].isExpanded);
       StorageService.saveNotes(_notes);
       notifyListeners();
     }

@@ -61,7 +61,8 @@ class _WidgetStudioScreenState extends State<WidgetStudioScreen> {
     final updatedNote = widget.note.copyWith(designLayers: _layers);
     Provider.of<NotesProvider>(context, listen: false).updateNote(updatedNote);
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Design Saved! ✨")));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text("Design Saved!")));
   }
 
   void _deleteSelected() {
@@ -73,44 +74,68 @@ class _WidgetStudioScreenState extends State<WidgetStudioScreen> {
     }
   }
 
-  // --- EMOJI PICKER (Themed) ---
-  void _showEmojiPicker() {
-    final List<String> emojis = [
-      "🔥", "✨", "💀", "🚀", "💡", "❤️", "👀", "✅", "🎉", "💯", "📌", "🍔",
-      "🌿", "🧠", "💼", "✈️", "🎵", "💰", "⚡", "🛑", "⚠️", "❓", "🔔", "⏰",
-      "📅", "📝", "🖌️", "📷", "🎤", "💻", "📱", "🕶️", "🧢", "👟", "⚽", "🏀",
-      "🧘", "🚴", "🚗", "🏠", "🏢", "🍕", "☕", "🍺", "🥂", "🎂", "🍎", "🥑",
-      "🐶", "🐱", "🦁", "🦕", "🌵", "🌸", "☀️", "🌙", "🌧️", "❄️", "🌊", "🌍"
+  // --- BADGE STICKER PICKER (Minimalist Monochrome) ---
+  void _showBadgePicker() {
+    final List<String> badges = [
+      "PRIORITY", "FOCUS", "DRAFT", "URGENT", "NOTE", "STAR",
+      "DONE", "APPROVED", "TODO", "GOAL", "KEY", "IDEA"
     ];
 
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1C1C1E),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       isScrollControlled: true,
       builder: (_) => Container(
-        height: MediaQuery.of(context).size.height * 0.5,
+        height: MediaQuery.of(context).size.height * 0.45,
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 20),
-            const Text("ADD STICKER", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 2)),
+            const Text("ADD BADGE STICKER",
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    letterSpacing: 2)),
             const SizedBox(height: 15),
             Expanded(
               child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 6, mainAxisSpacing: 10, crossAxisSpacing: 10),
-                itemCount: emojis.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 2.2),
+                itemCount: badges.length,
                 itemBuilder: (context, index) {
                   return GestureDetector(
                     onTap: () {
-                       _addLayer('emoji', emojis[index]);
-                       Navigator.pop(context);
+                      _addLayer('badge', badges[index]);
+                      Navigator.pop(context);
                     },
                     child: Container(
                       alignment: Alignment.center,
-                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                      child: Text(emojis[index], style: const TextStyle(fontSize: 24)),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: Text(
+                        badges[index],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
                     ),
                   );
                 },
@@ -160,14 +185,14 @@ class _WidgetStudioScreenState extends State<WidgetStudioScreen> {
             ),
           ),
           Positioned(
-            bottom: 40, left: 30, right: 30,
+            bottom: 40, left: 20, right: 20,
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 15),
               decoration: BoxDecoration(color: const Color(0xFF1C1C1E), borderRadius: BorderRadius.circular(40), border: Border.all(color: Colors.white12)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _toolBtn(CupertinoIcons.smiley, "Emoji", _showEmojiPicker),
+                  _toolBtn(CupertinoIcons.tag, "Sticker", _showBadgePicker),
                   _toolBtn(CupertinoIcons.pencil_outline, "Doodle", _openDoodlePad), // Ensure _openDoodlePad exists or is imported
                   _toolBtn(CupertinoIcons.trash, "Remove", _deleteSelected, color: Colors.redAccent),
                 ],
@@ -224,7 +249,7 @@ class _WidgetStudioScreenState extends State<WidgetStudioScreen> {
                       }
                     }
                   },
-                  child: const Text("Done", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                  child: Text("Done", style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),

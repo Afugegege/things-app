@@ -4,28 +4,7 @@ import '../models/event_model.dart';
 import '../services/notification_service.dart';
 
 class EventsProvider extends ChangeNotifier {
-  final List<Event> _events = [
-    // Sample Data
-    Event(
-      id: const Uuid().v4(),
-      title: "Mom's Birthday",
-      date: DateTime.now().add(const Duration(days: 4)),
-      endTime: DateTime.now().add(const Duration(days: 4)),
-      isAllDay: true,
-      type: EventType.birthday,
-      color: Colors.purpleAccent,
-    ),
-    Event(
-      id: const Uuid().v4(),
-      title: "Japan Trip",
-      date: DateTime.now().add(const Duration(days: 120)), // Far future event
-      endTime: DateTime.now().add(const Duration(days: 125)),
-      isAllDay: true,
-      isDayCounter: true, // This should now show up
-      type: EventType.personal,
-      color: Colors.pinkAccent,
-    ),
-  ];
+  final List<Event> _events = [];
 
   List<Event> get events {
     _events.sort((a, b) => a.date.compareTo(b.date));
@@ -81,12 +60,22 @@ class EventsProvider extends ChangeNotifier {
   }
 
   void removeEvent(String id) {
-    final event = _events.firstWhere((e) => e.id == id, orElse: () => Event(id: '', title: '', date: DateTime.now(), endTime: DateTime.now(), isAllDay: false, color: Colors.blue));
+    final event = _events.firstWhere((e) => e.id == id, orElse: () => Event(id: '', title: '', date: DateTime.now(), endTime: DateTime.now(), isAllDay: false, color: Colors.grey));
     if (event.id.isNotEmpty) {
-       NotificationService.cancelNotification(event.id.hashCode);
+      try {
+        NotificationService.cancelNotification(event.id.hashCode).catchError((_) {});
+      } catch (_) {}
     }
     _events.removeWhere((e) => e.id == id);
     notifyListeners();
+  }
+
+  void restoreEvent(Event event) {
+    if (!_events.any((e) => e.id == event.id)) {
+      _events.add(event);
+      _scheduleNotification(event);
+      notifyListeners();
+    }
   }
 
   void _scheduleNotification(Event e) {
@@ -97,17 +86,24 @@ class EventsProvider extends ChangeNotifier {
     }
     
     if (scheduledTime.isAfter(DateTime.now())) {
-      NotificationService.scheduleEventNotification(
-        id: e.id.hashCode,
-        title: e.title,
-        location: e.location ?? '',
-        scheduledTime: scheduledTime,
-      );
+      try {
+        NotificationService.scheduleEventNotification(
+          id: e.id.hashCode,
+          title: e.title,
+          location: e.location ?? '',
+          scheduledTime: scheduledTime,
+        ).catchError((_) {});
+      } catch (_) {}
     }
   }
 
   bool isSameDay(DateTime? a, DateTime? b) {
     if (a == null || b == null) return false;
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  void loadEvents() {
+    _events.clear();
+    notifyListeners();
   }
 }

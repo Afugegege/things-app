@@ -1,74 +1,59 @@
-# MyNote
+# things
 
-**A minimalist, glass-morphic LifeOS for managing notes, tasks, and expenses.**
+a minimalist personal organizer and life os built with flutter. 
 
-MyNote is designed to be your personal dashboard for life, combining efficiency with a premium, aesthetic user experience. Built with a focus on "Glass Minimalist" design principles, it offers a clutter-free environment to organize your thoughts and day-to-day activities.
+designed for people who care about how their tools look and feel — dark mode, frosted glass surfaces, modular widgets, and zero visual clutter.
 
-## Features
+---
 
-- **Glass-Morphic Design**: A stunning, modern UI featuring frosted glass effects and dynamic backgrounds.
-- **Quilted Grid Layout**: A flexible and visually appealing dashboard layout for your widgets and content.
-- **Multi-Select Functionality**: Efficiently manage your notes and tasks with intuitive multi-select controls.
-- **Audio & Podcasting**: Integrated audio features powered by `just_audio` for recording thoughts or listening to content.
-- **Secure & Cloud-Synced**: Built with Supabase for reliable data syncing and authentication.
+### why
 
-## Tech Stack
+most productivity apps are either bloated databases or look like they were built in 2012. 
 
-- **Framework**: Flutter & Dart
-- **State Management**: Provider
-- **Backend**: Supabase (`supabase_flutter`)
-- **Visualization**: `fl_chart` for beautiful data representation
-- **Audio**: `just_audio`
-- **UI Components**: `flutter_staggered_grid_view`, `glass_kit` (custom implementation)
+things is a single space for daily focus: quick capture notes, gesture-driven task lists, customizable dashboard widgets, and a clean spending tracker that keeps finances grounded.
 
-## UI Showcase
+### what's inside
 
-Nothing tells the story better than seeing it in action.
+- **dashboard & widget studio**: modular layout for quick glance metrics, habits, counters, and personal widgets.
+- **notes & brain dumps**: fast writing surface with markdown formatting and rich editing.
+- **tasks & gestures**: fluid swipe actions, priorities, and clean lists without the friction.
+- **money tracker**: spending groups, account balances, and simple category budgets.
+- **smart actions**: lightweight assistant integration for quick summaries and actions.
 
-_(Add your screenshots or GIFs here. You can drag and drop images into the `assets` folder and link them here, or use an external image host.)_
+### stack
 
-> **Tip**: Capturing a GIF of the dashboard interactions or the Quilted Grid transition will really make this section pop!
+- **framework**: flutter (dart)
+- **state**: provider
+- **backend**: supabase
+- **charts & ui**: fl_chart, flutter_staggered_grid_view
 
-## Getting Started
+### run locally
 
-This project is a Flutter application.
+prerequisites: flutter sdk (3.2.0+) and dart.
 
-### Prerequisites
+1. clone the repo:
+```bash
+git clone https://github.com/Afugegege/things-app.git
+cd things-app
+```
 
-- Flutter SDK (Latest Stable)
-- Dart SDK
+2. install dependencies:
+```bash
+flutter pub get
+```
 
-### Installation
+3. configure environment variables:
+create a `.env` file in the root directory:
+```env
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-1.  **Clone the repository**
+4. launch:
+```bash
+flutter run
+```
 
-    ```bash
-    git clone https://github.com/yourusername/mynote.git
-    cd mynote
-    ```
+---
 
-2.  **Environment Setup**
-    - Create a `.env` file in the root directory.
-    - Add your Supabase URL and Anon Key:
-      ```env
-      SUPABASE_URL=your_supabase_url
-      SUPABASE_ANON_KEY=your_supabase_anon_key
-      ```
-    - _Note: The `.env` file is git-ignored for security._
-
-3.  **Install Dependencies**
-
-    ```bash
-    flutter pub get
-    ```
-
-4.  **Run the App**
-    ```bash
-    flutter run
-    ```
-
-## Resources
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+license: mit

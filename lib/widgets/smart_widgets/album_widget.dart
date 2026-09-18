@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../../models/note_model.dart';
-import '../glass_container.dart';
 
 class AlbumWidget extends StatelessWidget {
   final Note note;
@@ -17,11 +16,17 @@ class AlbumWidget extends StatelessWidget {
     return GestureDetector(
       onTap: () => _openAlbum(context),
       child: Container(
+        width: double.infinity,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          border: note.isPinned ? Border.all(color: Colors.white.withOpacity(0.9), width: 4.0) : null,
+          borderRadius: BorderRadius.circular(22),
+          border: note.isPinned
+              ? Border.all(color: Colors.white, width: 2.0)
+              : Border.all(color: Colors.white12, width: 1.0),
           color: Colors.white10,
-          image: hasCover ? DecorationImage(image: FileImage(coverImage!), fit: BoxFit.cover) : null,
+          image: hasCover
+              ? DecorationImage(
+                  image: FileImage(coverImage!), fit: BoxFit.cover)
+              : null,
         ),
         child: Stack(
           children: [
@@ -32,14 +37,17 @@ class AlbumWidget extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
                     gradient: LinearGradient(
-                      colors: [Colors.black.withOpacity(0.0), Colors.black.withOpacity(0.8)],
+                      colors: [
+                        Colors.black.withOpacity(0.0),
+                        Colors.black.withOpacity(0.8)
+                      ],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
                   ),
                 ),
               ),
-            
+
             // Content
             Padding(
               padding: const EdgeInsets.all(16),
@@ -49,12 +57,16 @@ class AlbumWidget extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(CupertinoIcons.photo_on_rectangle, color: Colors.white, size: 16),
+                      const Icon(CupertinoIcons.photo_on_rectangle,
+                          color: Colors.white, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           note.title.isNotEmpty ? note.title : "Untitled Album",
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -62,7 +74,9 @@ class AlbumWidget extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text("$count Moments", style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text("$count Moments",
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 12)),
                 ],
               ),
             ),
@@ -89,8 +103,14 @@ class AlbumWidget extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(note.title, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                  IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context)),
+                  Text(note.title,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold)),
+                  IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(context)),
                 ],
               ),
               const SizedBox(height: 20),
@@ -98,8 +118,8 @@ class AlbumWidget extends StatelessWidget {
                 child: GridView.builder(
                   controller: controller,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3, 
-                    mainAxisSpacing: 5, 
+                    crossAxisCount: 3,
+                    mainAxisSpacing: 5,
                     crossAxisSpacing: 5,
                   ),
                   itemCount: note.images.length,
@@ -110,7 +130,8 @@ class AlbumWidget extends StatelessWidget {
                       },
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.file(File(note.images[i]), fit: BoxFit.cover),
+                        child:
+                            Image.file(File(note.images[i]), fit: BoxFit.cover),
                       ),
                     );
                   },

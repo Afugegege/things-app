@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 class AppTheme {
   // --- CONSTANTS ---
   static const double glassBlur = 20.0;
-  
+
   // Standard iOS Backgrounds
   static const Color _darkBackground = Colors.black;
   static const Color _darkSurface = Colors.black;
@@ -30,7 +30,7 @@ class AppTheme {
       primaryColor: safeAccent,
       cardColor: surface,
       canvasColor: surface, // For bottom sheets
-      
+
       // Text Styling
       textTheme: TextTheme(
         bodyLarge: TextStyle(color: text),
@@ -41,34 +41,31 @@ class AppTheme {
 
       // Icon Styling
       iconTheme: IconThemeData(color: safeAccent),
-      
+
       // AppBar
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(color: text),
-        titleTextStyle: TextStyle(color: text, fontSize: 20, fontWeight: FontWeight.bold),
+        titleTextStyle:
+            TextStyle(color: text, fontSize: 20, fontWeight: FontWeight.bold),
       ),
 
       // Color Scheme (Controls Widgets like Switches, FABs, etc.)
-      colorScheme: isDark 
+      colorScheme: isDark
           ? ColorScheme.dark(
               primary: safeAccent,
               secondary: safeAccent,
               surface: surface,
-              background: bg,
-              onBackground: text,
               onSurface: text,
             )
           : ColorScheme.light(
               primary: safeAccent,
               secondary: safeAccent,
               surface: surface,
-              background: bg,
-              onBackground: text,
               onSurface: text,
             ),
-      
+
       // Cupertino Overrides (for iOS widgets)
       cupertinoOverrideTheme: CupertinoThemeData(
         primaryColor: safeAccent,
@@ -84,8 +81,10 @@ class AppTheme {
 
   // Helper: Prevents invisible colors (e.g. white accent on white background)
   static Color _adjustAccent(Color color, bool isDark) {
-    if (isDark && color.computeLuminance() < 0.15) return Colors.white; // Too dark for dark mode
-    if (!isDark && color.computeLuminance() > 0.85) return Colors.black; // Too bright for light mode
+    if (isDark && color.computeLuminance() < 0.15)
+      return Colors.white; // Too dark for dark mode
+    if (!isDark && color.computeLuminance() > 0.85)
+      return Colors.black; // Too bright for light mode
     return color;
   }
 }

@@ -10,13 +10,17 @@ class UserProvider extends ChangeNotifier {
     email: 'traveler@things.app',
     aiMemory: ["I love pizza", "My goal is to be organized"], 
     preferences: {
-      'isDarkMode': true,
-      'accentColor': 0xFFFFFFFF, 
+      'isDarkMode': false,
+      'accentColor': 0xFF000000, 
       'notifications': true,
     },
     isPro: true,
     dockItems: ['dashboard', 'notes', 'tasks', 'ai', 'profile'],
   );
+
+  UserProvider() {
+    loadUser();
+  }
 
   // --- NAVIGATION STATE (CRITICAL FIX) ---
   // This allows the Drawer and Dock to switch screens without pushing new routes
@@ -32,20 +36,16 @@ class UserProvider extends ChangeNotifier {
   // List<String> _dockItems = ['notes', 'tasks', 'ai', 'calendar', 'profile']; // REMOVED: Managed by User model now
   final Map<String, dynamic> _availableApps = {
     'dashboard': {'label': 'Home', 'icon': CupertinoIcons.square_grid_2x2_fill}, 
-    'notes': {'label': 'Brain', 'icon': CupertinoIcons.doc_text_fill},
-    'tasks': {'label': 'Focus', 'icon': CupertinoIcons.checkmark_alt_circle_fill},
+    'notes': {'label': 'Notes', 'icon': CupertinoIcons.doc_text_fill},
+    'tasks': {'label': 'Tasks', 'icon': CupertinoIcons.checkmark_alt_circle_fill},
     'ai': {'label': 'AI', 'icon': CupertinoIcons.sparkles},
-    'calendar': {'label': 'Plan', 'icon': CupertinoIcons.calendar},
+    'calendar': {'label': 'Calendar', 'icon': CupertinoIcons.calendar},
     'profile': {'label': 'You', 'icon': CupertinoIcons.person_fill},
     'wallet': {'label': 'Wallet', 'icon': CupertinoIcons.money_dollar},
 
   };
   
   final Map<String, bool> _folderVisibility = {};
-
-  UserProvider() {
-    _loadUser();
-  }
 
   // --- GETTERS ---
   User get user => _user;
@@ -64,12 +64,66 @@ class UserProvider extends ChangeNotifier {
     };
   }
 
-  // Theme & Streak Getters (RESTORED)
-  bool get isDarkMode => _user.preferences['isDarkMode'] ?? true;
-  Color get accentColor {
+  bool get isDarkMode => _user.preferences['isDarkMode'] ?? false;
+  bool get isGrid => _user.preferences['isGrid'] ?? true;
+
+  static const List<Map<String, dynamic>> presetAccentColors = [
+    {
+      'name': 'Monochrome',
+      'color': Colors.transparent,
+      'isMono': true,
+    },
+    {
+      'name': 'Electric Blue',
+      'color': Color(0xFF3B82F6),
+      'isMono': false,
+    },
+    {
+      'name': 'Emerald Green',
+      'color': Color(0xFF10B981),
+      'isMono': false,
+    },
+    {
+      'name': 'Sunset Violet',
+      'color': Color(0xFF8B5CF6),
+      'isMono': false,
+    },
+    {
+      'name': 'Coral Orange',
+      'color': Color(0xFFF97316),
+      'isMono': false,
+    },
+    {
+      'name': 'Rose Pink',
+      'color': Color(0xFFF43F5E),
+      'isMono': false,
+    },
+    {
+      'name': 'Ocean Cyan',
+      'color': Color(0xFF06B6D4),
+      'isMono': false,
+    },
+    {
+      'name': 'Golden Amber',
+      'color': Color(0xFFF59E0B),
+      'isMono': false,
+    },
+  ];
+
+  bool get isMonoAccent {
     int? colorVal = _user.preferences['accentColor'];
-    return colorVal != null ? Color(colorVal) : Colors.blueAccent;
+    return colorVal == null || colorVal == 0 || colorVal == 0xFFFFFFFF || colorVal == 0xFF000000;
   }
+
+  Color get accentColor {
+    if (isMonoAccent) {
+      return isDarkMode ? Colors.white : Colors.black;
+    }
+    return Color(_user.preferences['accentColor'] as int);
+  }
+
+  double get glassOpacity => (_user.preferences['glassOpacity'] as num?)?.toDouble() ?? StorageService.loadGlassOpacity();
+  String get fontFamily => (_user.preferences['fontFamily'] as String?) ?? StorageService.loadFontFamily();
   int get currentStreak => 5; 
 
   // --- ACTIONS ---
@@ -81,9 +135,36 @@ class UserProvider extends ChangeNotifier {
     _save();
   }
 
-  void updateAccentColor(Color color) {
+  void updateAccentColor(Color color, {bool isMono = false}) {
     final newPrefs = Map<String, dynamic>.from(_user.preferences);
-    newPrefs['accentColor'] = color.value;
+    if (isMono || color == Colors.transparent || color.value == 0 || color == Colors.white || color == Colors.black) {
+      newPrefs['accentColor'] = 0;
+    } else {
+      newPrefs['accentColor'] = color.value;
+    }
+    _user = _user.copyWith(preferences: newPrefs);
+    _save();
+  }
+
+  void updateGlassOpacity(double opacity) {
+    final newPrefs = Map<String, dynamic>.from(_user.preferences);
+    newPrefs['glassOpacity'] = opacity;
+    _user = _user.copyWith(preferences: newPrefs);
+    StorageService.saveGlassOpacity(opacity);
+    _save();
+  }
+
+  void updateFontFamily(String font) {
+    final newPrefs = Map<String, dynamic>.from(_user.preferences);
+    newPrefs['fontFamily'] = font;
+    _user = _user.copyWith(preferences: newPrefs);
+    StorageService.saveFontFamily(font);
+    _save();
+  }
+
+  void setGrid(bool value) {
+    final newPrefs = Map<String, dynamic>.from(_user.preferences);
+    newPrefs['isGrid'] = value;
     _user = _user.copyWith(preferences: newPrefs);
     _save();
   }
@@ -164,12 +245,22 @@ class UserProvider extends ChangeNotifier {
 
   bool isFolderVisible(String folder) => _folderVisibility[folder] ?? true;
   
-  void _loadUser() {
+  void loadUser() {
     final saved = StorageService.loadUser();
     if (saved != null) {
       _user = saved;
-      notifyListeners();
+    } else {
+      _user = User(
+        id: 'user_001',
+        name: 'Traveler',
+        email: 'traveler@things.app',
+        aiMemory: [],
+        preferences: {'isDarkMode': false, 'accentColor': 0xFF000000, 'notifications': true},
+        isPro: true,
+        dockItems: const ['dashboard', 'notes', 'tasks', 'ai', 'profile'],
+      );
     }
+    notifyListeners();
   }
 
   void _save() {

@@ -17,7 +17,6 @@ import '../screens/tasks/tasks_list_screen.dart';
 import '../screens/apps/brain_screen.dart';
 import '../screens/apps/wallet_screen.dart';
 
-
 class DashboardDrawer extends StatelessWidget {
   const DashboardDrawer({super.key});
 
@@ -27,7 +26,7 @@ class DashboardDrawer extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
     final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
-    
+
     final userProvider = Provider.of<UserProvider>(context);
     final notesProvider = Provider.of<NotesProvider>(context);
     final folders = notesProvider.folders;
@@ -40,13 +39,15 @@ class DashboardDrawer extends StatelessWidget {
           // 1. User Header
           GestureDetector(
             onTap: () {
-              Navigator.pop(context); 
+              Navigator.pop(context);
               userProvider.changeView('profile');
             },
             child: Container(
               padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
+                color: isDark
+                    ? Colors.white.withOpacity(0.05)
+                    : Colors.black.withOpacity(0.03),
               ),
               child: Row(
                 children: [
@@ -56,8 +57,16 @@ class DashboardDrawer extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(userProvider.user.name, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
-                        Text("View Profile", style: TextStyle(fontSize: 12, color: theme.primaryColor, fontWeight: FontWeight.w600)),
+                        Text(userProvider.user.name,
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: textColor)),
+                        Text("View Profile",
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: theme.primaryColor,
+                                fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
@@ -66,7 +75,10 @@ class DashboardDrawer extends StatelessWidget {
                     color: textColor,
                     onPressed: () {
                       Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const SettingsScreen()));
                     },
                   )
                 ],
@@ -81,63 +93,85 @@ class DashboardDrawer extends StatelessWidget {
               children: [
                 // APPS SECTION
                 _buildSectionHeader(context, "APPS"),
-                
+
                 // Dashboard (Root)
-                _buildMenuItem(
-                  context, 
-                  icon: CupertinoIcons.home, 
-                  label: "Dashboard", 
-                  onTap: () {
-                    // This logic ensures we go back to the very first screen (Dashboard)
-                    // and clear any other screens stacked on top.
-                    Navigator.pop(context); // Close drawer
-                    Navigator.popUntil(context, (route) => route.isFirst);
-                    userProvider.changeView('dashboard');
-                  }
-                ),
+                _buildMenuItem(context,
+                    icon: CupertinoIcons.home, label: "Dashboard", onTap: () {
+                  // This logic ensures we go back to the very first screen (Dashboard)
+                  // and clear any other screens stacked on top.
+                  Navigator.pop(context); // Close drawer
+                  Navigator.popUntil(context, (route) => route.isFirst);
+                  userProvider.changeView('dashboard');
+                }),
 
                 // Sub-Apps (Using changeView to keep dock visible)
-                _buildMenuItem(context, icon: CupertinoIcons.chat_bubble_2, label: "AI Assistant", onTap: () => _navTo(context, userProvider, 'ai')),
-                _buildMenuItem(context, icon: CupertinoIcons.doc_text, label: "Notes", onTap: () => _navTo(context, userProvider, 'notes')),
-                _buildMenuItem(context, icon: CupertinoIcons.check_mark_circled, label: "Tasks", onTap: () => _navTo(context, userProvider, 'tasks')),
-                _buildMenuItem(context, icon: CupertinoIcons.money_dollar_circle, label: "Finance", onTap: () => _navTo(context, userProvider, 'wallet')),
-                _buildMenuItem(context, icon: CupertinoIcons.calendar, label: "Calendar", onTap: () => _navTo(context, userProvider, 'calendar')),
-
+                _buildMenuItem(context,
+                    icon: CupertinoIcons.chat_bubble_2,
+                    label: "AI Assistant",
+                    onTap: () => _navTo(context, userProvider, 'ai')),
+                _buildMenuItem(context,
+                    icon: CupertinoIcons.doc_text,
+                    label: "Notes",
+                    onTap: () => _navTo(context, userProvider, 'notes')),
+                _buildMenuItem(context,
+                    icon: CupertinoIcons.check_mark_circled,
+                    label: "Tasks",
+                    onTap: () => _navTo(context, userProvider, 'tasks')),
+                _buildMenuItem(context,
+                    icon: CupertinoIcons.money_dollar_circle,
+                    label: "Finance",
+                    onTap: () => _navTo(context, userProvider, 'wallet')),
+                _buildMenuItem(context,
+                    icon: CupertinoIcons.calendar,
+                    label: "Calendar",
+                    onTap: () => _navTo(context, userProvider, 'calendar')),
 
                 const SizedBox(height: 30),
-                
+
                 // FOLDERS SECTION
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _buildSectionHeader(context, "COLLECTIONS"),
                     IconButton(
-                      icon: Icon(Icons.add, size: 20, color: secondaryTextColor),
-                      onPressed: () => _showAddFolderDialog(context, notesProvider),
+                      icon:
+                          Icon(Icons.add, size: 20, color: secondaryTextColor),
+                      onPressed: () =>
+                          _showAddFolderDialog(context, notesProvider),
                       tooltip: "New Folder",
                     ),
                   ],
                 ),
-                
+
                 if (folders.isEmpty)
                   Padding(
                     padding: const EdgeInsets.only(left: 15),
-                    child: Text("No collections yet.", style: TextStyle(color: secondaryTextColor, fontSize: 13, fontStyle: FontStyle.italic)),
+                    child: Text("No collections yet.",
+                        style: TextStyle(
+                            color: secondaryTextColor,
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic)),
                   ),
 
                 ...folders.map((folder) {
                   final isProtected = folder == 'All' || folder == 'General';
-                  return _buildFolderItem(context, folder, notesProvider, isProtected);
+                  return _buildFolderItem(
+                      context, folder, notesProvider, isProtected);
                 }),
               ],
             ),
           ),
-          
+
           // 3. Footer
           Padding(
             padding: const EdgeInsets.all(20),
             child: Center(
-              child: Text("v1.0.4", style: TextStyle(color: secondaryTextColor.withOpacity(0.3), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2)),
+              child: Text("v1.0.4",
+                  style: TextStyle(
+                      color: secondaryTextColor.withOpacity(0.3),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2)),
             ),
           ),
         ],
@@ -163,7 +197,8 @@ class DashboardDrawer extends StatelessWidget {
       child: Text(
         title,
         style: TextStyle(
-          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+          color:
+              Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
           fontSize: 11,
           fontWeight: FontWeight.w900,
           letterSpacing: 1.5,
@@ -173,7 +208,11 @@ class DashboardDrawer extends StatelessWidget {
   }
 
   // Updated builder to handle both direct onTap (Dashboard) and Widget targets (Apps)
-  Widget _buildMenuItem(BuildContext context, {required IconData icon, required String label, Widget? target, VoidCallback? onTap}) {
+  Widget _buildMenuItem(BuildContext context,
+      {required IconData icon,
+      required String label,
+      Widget? target,
+      VoidCallback? onTap}) {
     final theme = Theme.of(context);
     final color = theme.textTheme.bodyLarge?.color;
 
@@ -206,7 +245,8 @@ class DashboardDrawer extends StatelessWidget {
     );
   }
 
-  Widget _buildFolderItem(BuildContext context, String folder, NotesProvider notesProvider, bool isProtected) {
+  Widget _buildFolderItem(BuildContext context, String folder,
+      NotesProvider notesProvider, bool isProtected) {
     final theme = Theme.of(context);
     final textColor = theme.textTheme.bodyLarge?.color;
     final isSelected = notesProvider.selectedFolder == folder;
@@ -214,7 +254,9 @@ class DashboardDrawer extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 2),
       decoration: BoxDecoration(
-        color: isSelected ? theme.primaryColor.withOpacity(0.05) : Colors.transparent,
+        color: isSelected
+            ? theme.primaryColor.withOpacity(0.05)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
       ),
       child: ListTile(
@@ -222,33 +264,45 @@ class DashboardDrawer extends StatelessWidget {
         visualDensity: VisualDensity.compact,
         contentPadding: const EdgeInsets.only(left: 12, right: 5),
         leading: Icon(
-          isSelected ? CupertinoIcons.folder_open : CupertinoIcons.folder, 
-          size: 18, 
-          color: isSelected ? (theme.brightness == Brightness.dark ? Provider.of<UserProvider>(context).accentColor : Colors.black) : theme.textTheme.bodyMedium?.color
-        ),
-        title: Text(folder, style: TextStyle(color: textColor, fontSize: 14, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+            isSelected ? CupertinoIcons.folder_open : CupertinoIcons.folder,
+            size: 18,
+            color: isSelected
+                ? (theme.brightness == Brightness.dark
+                    ? Provider.of<UserProvider>(context).accentColor
+                    : Colors.black)
+                : theme.textTheme.bodyMedium?.color),
+        title: Text(folder,
+            style: TextStyle(
+                color: textColor,
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
         trailing: SizedBox(
           width: 70,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
-              GestureDetector(
-                onTap: () => _showFolderAddOptions(context, folder, notesProvider),
-                behavior: HitTestBehavior.opaque,
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Icon(Icons.add, size: 20, color: theme.textTheme.bodyMedium?.color),
-                ),
-              ),
-              if (!isProtected) ...[
-                const SizedBox(width: 4),
+              if (folder != 'All')
                 GestureDetector(
-                  onTap: () => _confirmDeleteFolder(context, folder, notesProvider),
+                  onTap: () =>
+                      _showFolderAddOptions(context, folder, notesProvider),
                   behavior: HitTestBehavior.opaque,
                   child: Padding(
                     padding: const EdgeInsets.all(4),
-                    child: Icon(CupertinoIcons.trash, size: 18, color: Colors.redAccent.withOpacity(0.6)),
+                    child: Icon(Icons.add,
+                        size: 20, color: theme.textTheme.bodyMedium?.color),
+                  ),
+                ),
+              if (!isProtected) ...[
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: () =>
+                      _confirmDeleteFolder(context, folder, notesProvider),
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(CupertinoIcons.trash,
+                        size: 18, color: Colors.redAccent.withOpacity(0.6)),
                   ),
                 ),
               ],
@@ -259,7 +313,8 @@ class DashboardDrawer extends StatelessWidget {
           notesProvider.selectFolder(folder);
           Navigator.pop(context);
           // Navigate to Dashboard (Folder View)
-          Provider.of<UserProvider>(context, listen: false).changeView('dashboard');
+          Provider.of<UserProvider>(context, listen: false)
+              .changeView('dashboard');
         },
       ),
     );
@@ -267,206 +322,384 @@ class DashboardDrawer extends StatelessWidget {
 
   // --- ACTIONS & POPUPS ---
 
-  void _showFolderAddOptions(BuildContext context, String folder, NotesProvider provider) {
+  void _showFolderAddOptions(
+      BuildContext context, String folder, NotesProvider provider) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).cardColor,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) {
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        String filterQuery = "";
+        return StatefulBuilder(builder: (context, setState) {
           final theme = Theme.of(context);
           final textColor = theme.textTheme.bodyLarge?.color;
           final secondaryTextColor = theme.textTheme.bodyMedium?.color;
-          
+
           final enabledWidgets = provider.getWidgetsForFolder(folder);
-          final myWidgets = provider.notes.where((n) => n.widgetType != null && n.folder != folder).toList();
+          final myWidgets =
+              provider.notes.where((n) => n.folder != folder).toList();
 
           return SafeArea(
             child: Container(
-              padding: const EdgeInsets.all(20),
-              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
+              padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 20,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.9),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2)))),
-                   const SizedBox(height: 20),
-                   
-                   Text("MANAGE '$folder'", style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 1.5)),
-                   const SizedBox(height: 20),
+                  Center(
+                      child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                              color: theme.dividerColor,
+                              borderRadius: BorderRadius.circular(2)))),
+                  const SizedBox(height: 20),
 
-                   // 1. CREATE NEW
-                   Text("CREATE NEW", style: TextStyle(color: secondaryTextColor, fontSize: 11, fontWeight: FontWeight.bold)),
-                   const SizedBox(height: 10),
-                   Row(
-                     children: [
-                       Expanded(
-                         child: _actionButton(context, "Note", CupertinoIcons.doc_text, textColor!, () {
-                            Navigator.pop(ctx);
-                            Navigator.pop(context);
-                            provider.selectFolder(folder);
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const NoteEditorScreen()));
-                         }),
-                       ),
-                       const SizedBox(width: 10),
-                       Expanded(
-                         child: _actionButton(context, "Widget", CupertinoIcons.square_grid_2x2, textColor!, () {
-                            Navigator.pop(ctx);
-                            _showWidgetTypeSelector(context, folder, provider);
-                         }),
-                       ),
-                     ],
-                   ),
-                   const SizedBox(height: 25),
+                  Text("MANAGE '$folder'",
+                      style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          letterSpacing: 1.5)),
+                  const SizedBox(height: 20),
 
-                   // 2. ENABLE APP FEATURES
-                   Text("APP FEATURES", style: TextStyle(color: secondaryTextColor, fontSize: 11, fontWeight: FontWeight.bold)),
-                   const SizedBox(height: 10),
-                   Wrap(
-                     spacing: 12, runSpacing: 12,
-                     children: [
-                       _toggleButton(context, "Tasks", CupertinoIcons.check_mark_circled, textColor!, enabledWidgets.contains('Tasks'), () {
-                          provider.toggleFolderWidget(folder, 'Tasks');
-                          setState((){});
-                       }),
-                       _toggleButton(context, "Money", CupertinoIcons.money_dollar, textColor!, enabledWidgets.contains('Money'), () {
-                          provider.toggleFolderWidget(folder, 'Money');
-                          setState((){});
-                       }),
-                       _toggleButton(context, "Events", CupertinoIcons.calendar, textColor!, enabledWidgets.contains('Events'), () {
-                          provider.toggleFolderWidget(folder, 'Events');
-                          setState((){});
-                       }),
-                     ],
-                   ),
-                   const SizedBox(height: 25),
+                  // 1. CREATE NEW
+                  Text("CREATE NEW",
+                      style: TextStyle(
+                          color: secondaryTextColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _actionButton(context, "Note",
+                            CupertinoIcons.doc_text, textColor!, () {
+                          Navigator.pop(ctx);
+                          Navigator.pop(context);
+                          provider.selectFolder(folder);
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const NoteEditorScreen()));
+                        }),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _actionButton(context, "Widget",
+                            CupertinoIcons.square_grid_2x2, textColor, () {
+                          Navigator.pop(ctx);
+                          _showWidgetTypeSelector(context, folder, provider);
+                        }),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 25),
 
-                   // 3. ADD EXISTING WIDGETS
-                   if (myWidgets.isNotEmpty) ...[
-                      Text("ADD EXISTING WIDGETS", style: TextStyle(color: secondaryTextColor, fontSize: 11, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        height: 80,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          children: myWidgets.map((note) => Padding(
-                            padding: const EdgeInsets.only(right: 10),
-                            child: _toggleButton(
-                               context, 
-                               note.title, 
-                               CupertinoIcons.plus_square_fill_on_square_fill, 
-                               textColor!, 
-                               enabledWidgets.contains(note.id), 
-                               () {
-                                  provider.toggleFolderWidget(folder, note.id);
-                                  setState((){});
-                               }
+                  // 2. ENABLE APP FEATURES
+                  Text("APP FEATURES",
+                      style: TextStyle(
+                          color: secondaryTextColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      _toggleButton(
+                          context,
+                          "Tasks",
+                          CupertinoIcons.check_mark_circled,
+                          textColor,
+                          enabledWidgets.contains('Tasks'), () {
+                        provider.toggleFolderWidget(folder, 'Tasks');
+                        setState(() {});
+                      }),
+                      _toggleButton(
+                          context,
+                          "Money",
+                          CupertinoIcons.money_dollar,
+                          textColor,
+                          enabledWidgets.contains('Money'), () {
+                        provider.toggleFolderWidget(folder, 'Money');
+                        setState(() {});
+                      }),
+                      _toggleButton(context, "Events", CupertinoIcons.calendar,
+                          textColor, enabledWidgets.contains('Events'), () {
+                        provider.toggleFolderWidget(folder, 'Events');
+                        setState(() {});
+                      }),
+                    ],
+                  ),
+                  const SizedBox(height: 25),
+
+                  // 3. ADD EXISTING WIDGETS
+                  if (myWidgets.isNotEmpty) ...[
+                    Text("ADD EXISTING WIDGETS",
+                        style: TextStyle(
+                            color: secondaryTextColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 10),
+
+                    // Full Width Search Bar
+                    Container(
+                      width: double.infinity,
+                      height: 36,
+                      decoration: BoxDecoration(
+                          color: theme.cardColor,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: theme.dividerColor)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Row(
+                        children: [
+                          Icon(CupertinoIcons.search,
+                              size: 16, color: theme.disabledColor),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  isCollapsed: true,
+                                  hintText: "Search widgets..."),
+                              style: TextStyle(fontSize: 13, color: textColor),
+                              onChanged: (val) =>
+                                  setState(() => filterQuery = val),
                             ),
-                          )).toList(),
-                        ),
-                      )
-                   ]
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+
+                    SizedBox(
+                      height: 200, // Increased height
+                      child: ListView(
+                        padding: EdgeInsets.zero,
+                        children: myWidgets
+                            .where((n) =>
+                                filterQuery.isEmpty ||
+                                n.title
+                                    .toLowerCase()
+                                    .contains(filterQuery.toLowerCase()))
+                            .map((note) {
+                          final isEnabled = enabledWidgets.contains(note.id);
+
+                          // B&W Icon logic
+                          IconData icon = CupertinoIcons.doc_text;
+                          Color iconColor =
+                              textColor ?? Colors.white; // Strict B&W
+
+                          if (note.widgetType == 'Tasks') {
+                            icon = CupertinoIcons.check_mark_circled;
+                          } else if (note.widgetType == 'Money') {
+                            icon = CupertinoIcons.money_dollar;
+                          } else if (note.widgetType == 'Event') {
+                            icon = CupertinoIcons.calendar;
+                          }
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                                color: theme.brightness == Brightness.dark
+                                    ? Colors.white.withOpacity(0.05)
+                                    : Colors.black.withOpacity(0.03),
+                                borderRadius: BorderRadius.circular(12),
+                                border: isEnabled
+                                    ? Border.all(color: iconColor, width: 1)
+                                    : null),
+                            child: ListTile(
+                              dense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 0),
+                              leading: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                    color: iconColor.withOpacity(0.1),
+                                    shape: BoxShape.circle),
+                                child: Icon(icon, color: iconColor, size: 16),
+                              ),
+                              title: Text(
+                                  note.title.isNotEmpty
+                                      ? note.title
+                                      : "Untitled Widget",
+                                  style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              trailing: isEnabled
+                                  ? Icon(
+                                      CupertinoIcons.check_mark_circled_solid,
+                                      color: iconColor,
+                                      size: 18)
+                                  : Icon(CupertinoIcons.add_circled,
+                                      color: theme.disabledColor, size: 18),
+                              onTap: () {
+                                provider.toggleFolderWidget(folder, note.id);
+                                setState(() {});
+                              },
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    )
+                  ]
                 ],
               ),
             ),
           );
-        }
+        });
+      },
+    );
+  }
+
+  Widget _actionButton(BuildContext context, String label, IconData icon,
+      Color color, VoidCallback onTap) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16), // Taller button
+        decoration: BoxDecoration(
+          color: Colors.transparent, // Transparent background
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor), // Subtle border
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 4),
+            Text(label,
+                style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12))
+          ],
+        ),
       ),
     );
   }
 
-  Widget _actionButton(BuildContext context, String label, IconData icon, Color color, VoidCallback onTap) {
-      final theme = Theme.of(context);
-      return GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withOpacity(0.3)),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(height: 4),
-              Text(label, style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontWeight: FontWeight.bold, fontSize: 12)) 
-            ],
-          ),
+  Widget _toggleButton(BuildContext context, String label, IconData icon,
+      Color color, bool isSelected, VoidCallback onTap) {
+    final theme = Theme.of(context);
+    final textColor = theme.textTheme.bodyLarge?.color;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 80,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? textColor?.withOpacity(0.1)
+              : theme.dividerColor.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: isSelected ? textColor! : Colors.transparent,
+              width: 1), // Thinner border
         ),
-      );
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon,
+                color: isSelected ? color : theme.disabledColor, size: 22),
+            const SizedBox(height: 5),
+            Text(
+              label,
+              style: TextStyle(
+                  color: isSelected ? textColor : theme.disabledColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            )
+          ],
+        ),
+      ),
+    );
   }
 
-  Widget _toggleButton(BuildContext context, String label, IconData icon, Color color, bool isSelected, VoidCallback onTap) {
-      final theme = Theme.of(context);
-      final textColor = theme.textTheme.bodyLarge?.color;
-      return GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 80,
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? color.withOpacity(0.2) : theme.dividerColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isSelected ? color : Colors.transparent, width: 2),
-          ),
-          child: Column(
-             mainAxisAlignment: MainAxisAlignment.center,
-             children: [
-               Icon(icon, color: isSelected ? color : theme.disabledColor, size: 22),
-               const SizedBox(height: 5),
-               Text(
-                 label, 
-                 style: TextStyle(
-                   color: isSelected ? textColor : theme.disabledColor, 
-                   fontSize: 10, 
-                   fontWeight: FontWeight.bold
-                 ),
-                 textAlign: TextAlign.center,
-                 maxLines: 1,
-                 overflow: TextOverflow.ellipsis,
-               )
-             ],
-          ),
-        ),
-      );
-  }
+  void _showWidgetTypeSelector(
+      BuildContext context, String folder, NotesProvider provider) {
+    final theme = Theme.of(context);
 
-  void _showWidgetTypeSelector(BuildContext context, String folder, NotesProvider provider) {
-     final theme = Theme.of(context);
-     
-     showModalBottomSheet(
-       context: context,
-       backgroundColor: theme.cardColor,
-       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-       builder: (ctx) => SafeArea(
-         child: Container(
-           padding: const EdgeInsets.all(20),
-           child: Column(
-             mainAxisSize: MainAxisSize.min,
-             children: [
-                Text("SELECT WIDGET TYPE", style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 1.5)),
-                const SizedBox(height: 20),
-                Wrap(
-                  spacing: 20,
-                  runSpacing: 20,
-                  alignment: WrapAlignment.center,
+    showModalBottomSheet(
+        context: context,
+        backgroundColor: theme.cardColor,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder: (ctx) => SafeArea(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildWidgetOption(ctx, "Sticker", CupertinoIcons.smiley, Colors.orangeAccent, folder, provider, 'sticker'),
-                    _buildWidgetOption(ctx, "Monitor", CupertinoIcons.graph_circle, Colors.greenAccent, folder, provider, 'monitor'),
-                    _buildWidgetOption(ctx, "Quote", CupertinoIcons.quote_bubble, Colors.blueAccent, folder, provider, 'quote'),
-                    _buildWidgetOption(ctx, "Timer", CupertinoIcons.timer, Colors.redAccent, folder, provider, 'timer'),
+                    Text("SELECT WIDGET TYPE",
+                        style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            letterSpacing: 1.5)),
+                    const SizedBox(height: 20),
+                    Wrap(
+                      spacing: 20,
+                      runSpacing: 20,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _buildWidgetOption(
+                            ctx,
+                            "Checklist",
+                            CupertinoIcons.checkmark_square,
+                            Colors.blueAccent,
+                            folder,
+                            provider,
+                            'checklist'),
+                        _buildWidgetOption(
+                            ctx,
+                            "Sticker",
+                            CupertinoIcons.smiley,
+                            Colors.orangeAccent,
+                            folder,
+                            provider,
+                            'sticker'),
+                        _buildWidgetOption(
+                            ctx,
+                            "Monitor",
+                            CupertinoIcons.graph_circle,
+                            Colors.greenAccent,
+                            folder,
+                            provider,
+                            'monitor'),
+                        _buildWidgetOption(
+                            ctx,
+                            "Quote",
+                            CupertinoIcons.quote_bubble,
+                            Theme.of(ctx).brightness == Brightness.dark ? Colors.white : Colors.black,
+                            folder,
+                            provider,
+                            'quote'),
+                        _buildWidgetOption(ctx, "Timer", CupertinoIcons.timer,
+                            Colors.redAccent, folder, provider, 'timer'),
+                      ],
+                    )
                   ],
-                )
-             ],
-           ),
-         ),
-       )
-     );
+                ),
+              ),
+            ));
   }
 
-  Widget _buildWidgetOption(BuildContext context, String label, IconData icon, Color color, String folder, NotesProvider provider, String type) {
+  Widget _buildWidgetOption(BuildContext context, String label, IconData icon,
+      Color color, String folder, NotesProvider provider, String type) {
     return GestureDetector(
       onTap: () {
         // Create Widget Note
@@ -491,7 +724,8 @@ class DashboardDrawer extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 60, height: 60,
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
@@ -500,7 +734,10 @@ class DashboardDrawer extends StatelessWidget {
             child: Icon(icon, color: color, size: 30),
           ),
           const SizedBox(height: 5),
-          Text(label, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 11)),
+          Text(label,
+              style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                  fontSize: 11)),
         ],
       ),
     );
@@ -514,57 +751,87 @@ class DashboardDrawer extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Theme.of(context).cardColor,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
       builder: (ctx) => StatefulBuilder(
         builder: (context, setState) {
           final theme = Theme.of(context);
           final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
           final accentColor = Provider.of<UserProvider>(context).accentColor;
 
-          Widget _buildWidgetToggle(String label, IconData icon, Color color, String key) {
-             final bool isSelected = selectedWidgets.contains(key);
-             return GestureDetector(
-               onTap: () {
-                 setState(() {
-                   if (isSelected) selectedWidgets.remove(key);
-                   else selectedWidgets.add(key);
-                 });
-               },
-               child: Container(
-                 width: 80, 
-                 padding: const EdgeInsets.symmetric(vertical: 10),
-                 decoration: BoxDecoration(
-                   color: isSelected ? color.withOpacity(0.2) : theme.dividerColor.withOpacity(0.1),
-                   borderRadius: BorderRadius.circular(15),
-                   border: Border.all(color: isSelected ? color : Colors.transparent, width: 2),
-                 ),
-                 child: Column(
-                   children: [
-                     Icon(icon, color: isSelected ? color : theme.disabledColor, size: 24),
-                     const SizedBox(height: 5),
-                     Text(label, style: TextStyle(color: isSelected ? textColor : theme.disabledColor, fontSize: 10, fontWeight: FontWeight.bold))
-                   ],
-                 ),
-               ),
-             );
+          Widget buildWidgetToggle(
+              String label, IconData icon, Color color, String key) {
+            final bool isSelected = selectedWidgets.contains(key);
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    selectedWidgets.remove(key);
+                  } else {
+                    selectedWidgets.add(key);
+                  }
+                });
+              },
+              child: Container(
+                width: 80,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? color.withOpacity(0.2)
+                      : theme.dividerColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(
+                      color: isSelected ? color : Colors.transparent, width: 2),
+                ),
+                child: Column(
+                  children: [
+                    Icon(icon,
+                        color: isSelected ? color : theme.disabledColor,
+                        size: 24),
+                    const SizedBox(height: 5),
+                    Text(label,
+                        style: TextStyle(
+                            color: isSelected ? textColor : theme.disabledColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold))
+                  ],
+                ),
+              ),
+            );
           }
 
           return Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 20, top: 25, left: 25, right: 25),
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                top: 25,
+                left: 25,
+                right: 25),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2)))),
+                Center(
+                    child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                            color: theme.dividerColor,
+                            borderRadius: BorderRadius.circular(2)))),
                 const SizedBox(height: 25),
-                Text("NEW COLLECTION", style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                Text("NEW COLLECTION",
+                    style: TextStyle(
+                        color: textColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2)),
                 const SizedBox(height: 20),
-                
+
                 // Name Input
                 CupertinoTextField(
                   controller: controller,
                   placeholder: "Collection Name (e.g. Work, Study)",
-                  placeholderStyle: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                  placeholderStyle:
+                      TextStyle(color: theme.textTheme.bodyMedium?.color),
                   style: TextStyle(color: textColor),
                   autofocus: true,
                   padding: const EdgeInsets.all(16),
@@ -573,19 +840,29 @@ class DashboardDrawer extends StatelessWidget {
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                
+
                 const SizedBox(height: 25),
-                Text("INCLUDE DASHBOARD WIDGETS", style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontSize: 11, fontWeight: FontWeight.bold)),
+                Text("INCLUDE DASHBOARD WIDGETS",
+                    style: TextStyle(
+                        color: theme.textTheme.bodyMedium?.color,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold)),
                 const SizedBox(height: 15),
-                
+
                 // Widgets Grid
                 Wrap(
-                  spacing: 12, runSpacing: 12,
+                  spacing: 12,
+                  runSpacing: 12,
                   children: [
-                    _buildWidgetToggle("Tasks", CupertinoIcons.check_mark_circled, Colors.greenAccent, 'Tasks'),
-                    _buildWidgetToggle("Money", CupertinoIcons.money_dollar, Colors.redAccent, 'Money'),
-                    _buildWidgetToggle("Events", CupertinoIcons.calendar, Colors.orangeAccent, 'Events'),
-
+                    buildWidgetToggle(
+                        "Tasks",
+                        CupertinoIcons.check_mark_circled,
+                        Colors.greenAccent,
+                        'Tasks'),
+                    buildWidgetToggle("Money", CupertinoIcons.money_dollar,
+                        Colors.redAccent, 'Money'),
+                    buildWidgetToggle("Events", CupertinoIcons.calendar,
+                        Colors.orangeAccent, 'Events'),
                   ],
                 ),
 
@@ -607,7 +884,9 @@ class DashboardDrawer extends StatelessWidget {
                         Navigator.pop(ctx);
                       }
                     },
-                    child: const Text("Create Collection", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                    child: const Text("Create Collection",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.white)),
                   ),
                 ),
               ],
@@ -618,7 +897,8 @@ class DashboardDrawer extends StatelessWidget {
     );
   }
 
-  void _confirmDeleteFolder(BuildContext context, String folder, NotesProvider provider) {
+  void _confirmDeleteFolder(
+      BuildContext context, String folder, NotesProvider provider) {
     final theme = Theme.of(context);
     final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
     final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
@@ -627,35 +907,52 @@ class DashboardDrawer extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.fromLTRB(25, 20, 25, 40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2))),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: theme.dividerColor,
+                    borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 25),
             Container(
-              width: 50, height: 50,
+              width: 50,
+              height: 50,
               decoration: BoxDecoration(
                 color: Colors.redAccent.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(CupertinoIcons.trash, color: Colors.redAccent, size: 24),
+              child: const Icon(CupertinoIcons.trash,
+                  color: Colors.redAccent, size: 24),
             ),
             const SizedBox(height: 15),
-            Text("Delete '$folder'?", style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+            Text("Delete '$folder'?",
+                style: TextStyle(
+                    color: textColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text("Notes inside will be moved to 'All'.", style: TextStyle(color: secondaryTextColor, fontSize: 14)),
+            Text("Notes inside will be moved to 'All'.",
+                style: TextStyle(color: secondaryTextColor, fontSize: 14)),
             const SizedBox(height: 25),
             Row(
               children: [
                 Expanded(
                   child: CupertinoButton(
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                    color: isDark
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.black.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(14),
-                    child: Text("Cancel", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                    child: Text("Cancel",
+                        style: TextStyle(
+                            color: textColor, fontWeight: FontWeight.bold)),
                     onPressed: () => Navigator.pop(ctx),
                   ),
                 ),
@@ -665,7 +962,9 @@ class DashboardDrawer extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     color: Colors.redAccent,
                     borderRadius: BorderRadius.circular(14),
-                    child: const Text("Delete", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text("Delete",
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold)),
                     onPressed: () {
                       provider.deleteFolder(folder);
                       Navigator.pop(ctx);

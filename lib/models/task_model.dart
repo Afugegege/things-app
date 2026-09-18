@@ -6,6 +6,7 @@ class Task {
   final int priority; // 1=Low, 2=Medium, 3=High
   final String? note;
   final bool isPinned;
+  final String? linkedNoteId;
 
   Task({
     required this.id,
@@ -15,6 +16,7 @@ class Task {
     this.priority = 1,
     this.note,
     this.isPinned = false,
+    this.linkedNoteId,
   });
 
   Task copyWith({
@@ -25,6 +27,7 @@ class Task {
     int? priority,
     String? note,
     bool? isPinned,
+    String? linkedNoteId,
   }) {
     return Task(
       id: id ?? this.id,
@@ -34,6 +37,7 @@ class Task {
       priority: priority ?? this.priority,
       note: note ?? this.note,
       isPinned: isPinned ?? this.isPinned,
+      linkedNoteId: linkedNoteId ?? this.linkedNoteId,
     );
   }
   
@@ -45,6 +49,7 @@ class Task {
     'priority': priority,
     'note': note,
     'isPinned': isPinned,
+    'linkedNoteId': linkedNoteId,
   };
 
   factory Task.fromJson(Map<String, dynamic> json) {
@@ -56,6 +61,7 @@ class Task {
       priority: json['priority'] ?? 1,
       note: json['note'],
       isPinned: json['isPinned'] ?? false,
+      linkedNoteId: json['linkedNoteId'],
     );
   }
 }

@@ -23,6 +23,22 @@ class ChatMessage {
     };
   }
 
+  ChatMessage copyWith({
+    String? id,
+    String? text,
+    bool? isUser,
+    DateTime? timestamp,
+    String? audioPath,
+  }) {
+    return ChatMessage(
+      id: id ?? this.id,
+      text: text ?? this.text,
+      isUser: isUser ?? this.isUser,
+      timestamp: timestamp ?? this.timestamp,
+      audioPath: audioPath ?? this.audioPath,
+    );
+  }
+
   factory ChatMessage.fromMap(Map<String, dynamic> map) {
     return ChatMessage(
       id: map['id'] ?? '',
