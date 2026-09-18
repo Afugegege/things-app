@@ -4,6 +4,8 @@ a personal workspace for daily focus — notes, tasks, widgets, and spending.
 
 built with flutter because i wanted an app that looks quiet, feels fast, and doesn't get in the way. dark mode, subtle glass surfaces, and just what i actually use every day.
 
+![Things app interface](flutter_01.png)
+
 ---
 
 ### overview
@@ -47,6 +49,10 @@ SUPABASE_ANON_KEY=your_supabase_key
 ```bash
 flutter run
 ```
+
+### status
+
+an active personal project. it currently has no hosted demo or release build.
 
 ---
 
