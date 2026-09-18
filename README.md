@@ -1,55 +1,49 @@
 # things
 
-a minimalist personal organizer and life os built with flutter. 
+a personal workspace for daily focus — notes, tasks, widgets, and spending.
 
-designed for people who care about how their tools look and feel — dark mode, frosted glass surfaces, modular widgets, and zero visual clutter.
+built with flutter because i wanted an app that looks quiet, feels fast, and doesn't get in the way. dark mode, subtle glass surfaces, and just what i actually use every day.
 
 ---
 
-### why
+### overview
 
-most productivity apps are either bloated databases or look like they were built in 2012. 
-
-things is a single space for daily focus: quick capture notes, gesture-driven task lists, customizable dashboard widgets, and a clean spending tracker that keeps finances grounded.
-
-### what's inside
-
-- **dashboard & widget studio**: modular layout for quick glance metrics, habits, counters, and personal widgets.
-- **notes & brain dumps**: fast writing surface with markdown formatting and rich editing.
-- **tasks & gestures**: fluid swipe actions, priorities, and clean lists without the friction.
-- **money tracker**: spending groups, account balances, and simple category budgets.
-- **smart actions**: lightweight assistant integration for quick summaries and actions.
+- **notes**: quick capture with rich text and markdown support
+- **tasks**: swipe gestures, simple priorities, zero friction
+- **dashboard**: modular widgets for habits, counters, and daily overview
+- **money**: lightweight expense tracker, accounts, and category budgets
+- **actions**: small automated helpers for quick summaries
 
 ### stack
 
-- **framework**: flutter (dart)
-- **state**: provider
-- **backend**: supabase
-- **charts & ui**: fl_chart, flutter_staggered_grid_view
+- flutter & dart
+- provider for state
+- supabase for sync and storage
+- fl_chart for visualizations
 
-### run locally
+### setup
 
-prerequisites: flutter sdk (3.2.0+) and dart.
+prerequisites: flutter 3.2.0+
 
-1. clone the repo:
+1. clone the repo
 ```bash
 git clone https://github.com/Afugegege/things-app.git
 cd things-app
 ```
 
-2. install dependencies:
+2. get dependencies
 ```bash
 flutter pub get
 ```
 
-3. configure environment variables:
-create a `.env` file in the root directory:
+3. env config
+create a `.env` file in the project root:
 ```env
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_key
 ```
 
-4. launch:
+4. run
 ```bash
 flutter run
 ```
