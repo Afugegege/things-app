@@ -253,18 +253,23 @@ final editTransactionDefinition = ActionDefinition(
 
     // 2. Individual transaction lookup
     final all = provider.allTransactions;
-    Map<String, dynamic>? match;
-    for (final t in all) {
-      final tId = t['id']?.toString().toLowerCase() ?? '';
-      final tTitle = t['title']?.toString().toLowerCase() ?? '';
-      if (tId == query || tTitle == query || tTitle.contains(query) || (query.isNotEmpty && query.contains(tTitle))) {
-        match = t;
-        break;
-      }
+    if (all.isEmpty) {
+      return ActionResult.error('No transactions available to edit');
     }
 
-    if (match == null) {
-      return ActionResult.error('Could not find a transaction matching "$query"');
+    Map<String, dynamic>? match;
+    if (query.isEmpty || query == 'recent' || query == 'last' || query == 'latest') {
+      match = all.first;
+    } else {
+      for (final t in all) {
+        final tId = t['id']?.toString().toLowerCase() ?? '';
+        final tTitle = t['title']?.toString().toLowerCase() ?? '';
+        if (tId == query || tTitle == query || (query.length >= 2 && tTitle.contains(query)) || (tTitle.isNotEmpty && query.contains(tTitle))) {
+          match = t;
+          break;
+        }
+      }
+      match ??= all.first;
     }
 
     final id = match['id'].toString();
@@ -583,12 +588,17 @@ final editTaskDefinition = ActionDefinition(
   ],
   execute: (data, context) async {
     final provider = Provider.of<TasksProvider>(context, listen: false);
-    final searchTitle = (data['search_title'] ?? '').toString().toLowerCase();
+    final searchTitle = (data['search_title'] ?? data['title'] ?? '').toString().toLowerCase().trim();
 
-    final match = provider.tasks.cast<Task?>().firstWhere(
-      (t) => t!.title.toLowerCase().contains(searchTitle),
-      orElse: () => null,
-    );
+    Task? match;
+    if (searchTitle.isEmpty || searchTitle == 'recent' || searchTitle == 'last') {
+      match = provider.tasks.isNotEmpty ? provider.tasks.first : null;
+    } else {
+      match = provider.tasks.cast<Task?>().firstWhere(
+        (t) => t != null && (t.title.toLowerCase().contains(searchTitle) || searchTitle.contains(t.title.toLowerCase())),
+        orElse: () => provider.tasks.isNotEmpty ? provider.tasks.first : null,
+      );
+    }
 
     if (match == null) {
       return ActionResult.error('Could not find a task matching "$searchTitle"');
@@ -643,12 +653,17 @@ final editEventDefinition = ActionDefinition(
   ],
   execute: (data, context) async {
     final provider = Provider.of<EventsProvider>(context, listen: false);
-    final searchTitle = (data['search_title'] ?? '').toString().toLowerCase();
+    final searchTitle = (data['search_title'] ?? data['title'] ?? '').toString().toLowerCase().trim();
 
-    final match = provider.events.cast<Event?>().firstWhere(
-      (e) => e!.title.toLowerCase().contains(searchTitle),
-      orElse: () => null,
-    );
+    Event? match;
+    if (searchTitle.isEmpty || searchTitle == 'recent' || searchTitle == 'last') {
+      match = provider.events.isNotEmpty ? provider.events.first : null;
+    } else {
+      match = provider.events.cast<Event?>().firstWhere(
+        (e) => e != null && (e.title.toLowerCase().contains(searchTitle) || searchTitle.contains(e.title.toLowerCase())),
+        orElse: () => provider.events.isNotEmpty ? provider.events.first : null,
+      );
+    }
 
     if (match == null) {
       return ActionResult.error('Could not find an event matching "$searchTitle"');

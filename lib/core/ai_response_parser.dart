@@ -86,6 +86,25 @@ class AiResponseParser {
       }
     }
 
+    // ── 4. Fallback: if no action block was returned by AI, but user prompted a date correction ──
+    if (actions.isEmpty && userPrompt != null) {
+      final extractedDate = DateHelper.extractDateFromText(userPrompt);
+      if (extractedDate != null && DateHelper.isDateCorrection(userPrompt)) {
+        final def = ActionRegistry.get('edit_transaction');
+        if (def != null) {
+          actions.add(ActionIntent(
+            action: 'edit_transaction',
+            data: {
+              'action': 'edit_transaction',
+              'search_title': 'recent',
+              'date': extractedDate.toIso8601String(),
+            },
+            definition: def,
+          ));
+        }
+      }
+    }
+
     return ParsedAiResponse(
       displayText: displayContent,
       actions: actions,
@@ -152,11 +171,16 @@ class AiResponseParser {
               normalized['date'] = parsedDate.toIso8601String();
             }
           }
-          // 2. If date is missing, check user prompt for mentioned dates
-          if (normalized['date'] == null && userPrompt != null) {
+          // 2. Check user prompt for mentioned dates / date corrections
+          if (userPrompt != null) {
             final extracted = DateHelper.extractDateFromText(userPrompt);
             if (extracted != null) {
-              normalized['date'] = extracted.toIso8601String();
+              final isCorrection = DateHelper.isDateCorrection(userPrompt);
+              // CRITICAL: If the user explicitly provided a date in their prompt or is correcting the date,
+              // the user's explicit date ALWAYS overrides the AI's repeated or default date.
+              if (normalized['date'] == null || isCorrection || DateHelper.hasExplicitDate(userPrompt)) {
+                normalized['date'] = extracted.toIso8601String();
+              }
             }
           }
         }

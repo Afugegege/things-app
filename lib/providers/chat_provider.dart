@@ -107,11 +107,20 @@ class ChatProvider extends ChangeNotifier {
 
     try {
       final currency = StorageService.loadSelectedCurrency();
+      final recentTxs = StorageService.loadTransactions();
+      String contextData = "";
+      if (recentTxs.isNotEmpty) {
+        final txList = recentTxs.take(5).map((t) =>
+          '- "${t['title']}" (Amount: ${t['amount']}, Category: ${t['category']}, Date: ${t['date']?.toString().split('T')[0] ?? t['date']})'
+        ).join('\n');
+        contextData += "MOST RECENT TRANSACTIONS IN APP:\n$txList\n";
+      }
       final aiService = AiService();
       final responseText = await aiService.sendMessage(
         history: _messages.reversed.toList(),
         userMemories: userMemories,
         mode: mode,
+        contextData: contextData,
         customPersona: mode == 'Roleplay' ? userProvider.user.customPersona : null,
         aiModel: aiModel,
         currencyCode: currency,
@@ -148,8 +157,15 @@ class ChatProvider extends ChangeNotifier {
     _save();
     notifyListeners();
 
-    String contextData = "";
     final cur = currencyCode ?? StorageService.loadSelectedCurrency();
+    final recentTxs = StorageService.loadTransactions();
+    String contextData = "";
+    if (recentTxs.isNotEmpty) {
+      final txList = recentTxs.take(5).map((t) =>
+        '- "${t['title']}" (Amount: ${t['amount']}, Category: ${t['category']}, Date: ${t['date']?.toString().split('T')[0] ?? t['date']})'
+      ).join('\n');
+      contextData += "MOST RECENT TRANSACTIONS IN APP:\n$txList\n";
+    }
 
     try {
       final aiService = AiService();

@@ -46,6 +46,30 @@ void main() {
       expect(ex3?.month, 3);
     });
 
+    test('extracts ordinal days and word numbers from follow-up user prompt', () {
+      final ordinal1 = DateHelper.extractDateFromText('actually it was on the 2nd', referenceDate: refDate);
+      expect(ordinal1?.day, 2);
+      expect(ordinal1?.month, 3);
+      expect(ordinal1?.year, 2026);
+
+      final ordinal2 = DateHelper.extractDateFromText('the date was on 15th', referenceDate: refDate);
+      expect(ordinal2?.day, 15);
+
+      final wordNum = DateHelper.extractDateFromText('it was two days ago', referenceDate: refDate);
+      expect(wordNum?.day, 10);
+
+      final aDayAgo = DateHelper.extractDateFromText('happened a day ago', referenceDate: refDate);
+      expect(aDayAgo?.day, 11);
+    });
+
+    test('detects date correction intent correctly', () {
+      expect(DateHelper.isDateCorrection('actually that was yesterday'), true);
+      expect(DateHelper.isDateCorrection('change the date to Oct 2nd'), true);
+      expect(DateHelper.isDateCorrection('the date was on the 2nd'), true);
+      expect(DateHelper.isDateCorrection('no, it was Friday'), true);
+      expect(DateHelper.isDateCorrection('I want to buy some apples'), false);
+    });
+
     test('formats friendly dates', () {
       final y = DateTime.now().subtract(const Duration(days: 1));
       expect(DateHelper.formatFriendlyDate(y), 'Yesterday');

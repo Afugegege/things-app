@@ -770,10 +770,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(CupertinoIcons.sparkles,
-                                size: 13,
-                                color: isEffectiveBgDark ? Colors.black : Colors.white),
-                            const SizedBox(width: 5),
+                            ModernAiIcon(
+                              size: 13,
+                              color: isEffectiveBgDark ? Colors.black : Colors.white,
+                            ),
+                            const SizedBox(width: 6),
                             Text(
                               "Ask AI",
                               style: TextStyle(
@@ -899,10 +900,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(CupertinoIcons.sparkles,
-                              size: 13,
-                              color: isEffectiveBgDark ? Colors.white : Colors.black),
-                          const SizedBox(width: 4),
+                          ModernAiIcon(
+                            size: 13,
+                            color: isEffectiveBgDark ? Colors.white : Colors.black,
+                          ),
+                          const SizedBox(width: 5),
                           Text(
                             "AI Edit",
                             style: TextStyle(
@@ -1735,37 +1737,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                         autoFocus: false,
                         expands: true,
                         placeholder: "Start typing...",
-                        onTapUp: (details, getPosition) {
-                          if (!_quillController.selection.isCollapsed) {
-                            final pos = getPosition(details.localPosition);
-                            _quillController.updateSelection(
-                              TextSelection.collapsed(offset: pos.offset),
-                              quill.ChangeSource.local,
-                            );
-                            return true;
-                          }
-                          return false;
-                        },
-                        onTapDown: (details, getPosition) {
-                          if (!_quillController.selection.isCollapsed) {
-                            final pos = getPosition(details.localPosition);
-                            _quillController.updateSelection(
-                              TextSelection.collapsed(offset: pos.offset),
-                              quill.ChangeSource.local,
-                            );
-                            return true;
-                          }
-                          return false;
-                        },
-                        onTapOutside: (event, focusNode) {
-                          if (!_quillController.selection.isCollapsed) {
-                            _quillController.updateSelection(
-                              TextSelection.collapsed(
-                                  offset: _quillController.selection.extentOffset),
-                              quill.ChangeSource.local,
-                            );
-                          }
-                        },
+                        showSelectionHandles: true,
+                        enableInteractiveSelection: true,
                         embedBuilders:
                             kIsWeb ? null : FlutterQuillEmbeds.editorBuilders(),
                         customStyles: quill.DefaultStyles(
@@ -1853,34 +1826,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                                 () => Share.share(
                                     _quillController.document.toPlainText()),
                                 textColor),
-                            // AI Button - Modern iOS Monochrome Style
-                            GestureDetector(
-                              onTap: _openAIAgent,
-                              child: Container(
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: isLandscape ? 8 : 12, vertical: isLandscape ? 4 : 8),
-                                decoration: BoxDecoration(
-                                  color: textColor.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                      color: textColor.withOpacity(0.12)),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(CupertinoIcons.sparkles,
-                                        size: isLandscape ? 11 : 13, color: textColor),
-                                    const SizedBox(width: 4),
-                                    Text("AI",
-                                        style: TextStyle(
-                                            color: textColor,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: isLandscape ? 11 : 13)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 8),
+                            // AI Button - Modern Neural Apple Intelligence Style
+                            _buildModernAiHeaderButton(
+                                isEffectiveBgDark, textColor, isLandscape),
+                            const SizedBox(width: 8),
                             if (_saveStatus != null)
                               Padding(
                                 padding: const EdgeInsets.only(right: 6),
@@ -1896,7 +1846,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                               onPressed: _saveNote,
                               child: Container(
                                 padding: EdgeInsets.symmetric(
-                                    horizontal: isLandscape ? 10 : 14, vertical: isLandscape ? 4 : 8),
+                                    horizontal: isLandscape ? 12 : 16, vertical: isLandscape ? 5 : 8),
                                 decoration: BoxDecoration(
                                   color: effectiveAccent,
                                   borderRadius: BorderRadius.circular(20),
@@ -1913,7 +1863,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 14),
                           ],
                         ),
                       ),
@@ -2594,4 +2544,116 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       ),
     );
   }
+
+  Widget _buildModernAiHeaderButton(
+      bool isEffectiveBgDark, Color textColor, bool isLandscape) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        _openAIAgent();
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isLandscape ? 10 : 13,
+          vertical: isLandscape ? 5 : 7,
+        ),
+        decoration: BoxDecoration(
+          color: isEffectiveBgDark
+              ? Colors.white.withOpacity(0.09)
+              : Colors.black.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isEffectiveBgDark
+                ? Colors.white.withOpacity(0.14)
+                : Colors.black.withOpacity(0.08),
+            width: 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ModernAiIcon(
+              size: isLandscape ? 12 : 13.5,
+              color: textColor,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              "AI",
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+                fontSize: isLandscape ? 11.5 : 12.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────
+//  MODERN AI ICON & PAINTER (Vector Neural Emblem)
+// ──────────────────────────────────────────────
+
+class ModernAiIcon extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const ModernAiIcon({
+    super.key,
+    this.size = 14,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: Size(size, size),
+      painter: _ModernAiIconPainter(color: color),
+    );
+  }
+}
+
+class _ModernAiIconPainter extends CustomPainter {
+  final Color color;
+
+  const _ModernAiIconPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.3
+      ..isAntiAlias = true;
+
+    // 3 smooth overlapping orbital rings
+    for (int i = 0; i < 3; i++) {
+      canvas.save();
+      canvas.translate(center.dx, center.dy);
+      canvas.rotate(i * 3.14159265359 / 3);
+      final rect = Rect.fromCenter(
+        center: Offset.zero,
+        width: radius * 1.85,
+        height: radius * 0.95,
+      );
+      canvas.drawOval(rect, paint);
+      canvas.restore();
+    }
+
+    // Focal center core dot
+    final dotPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, 1.25, dotPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ModernAiIconPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

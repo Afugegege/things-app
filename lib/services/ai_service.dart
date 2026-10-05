@@ -115,12 +115,23 @@ Current Date: ${DateTime.now().toIso8601String()}
       * "category": Choose from: 'Food', 'Transport', 'Shopping', 'Entertainment', 'Health', 'Other', 'General'.
       * "currency": Default to "$activeCurrencyCode".
       * "date": If the user mentions ANY date or time reference (e.g. "yesterday", "last night", "on March 5th", "two days ago", "last Friday", "today"), compute relative to ${now.year} and set "date" in ISO 8601 format (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss). NEVER omit the "date" field when a date reference was provided!
-    - EDITING EXPENSES (`edit_transaction`):
+    - EDITING EXPENSES & FOLLOW-UP DATE UPDATES (`edit_transaction`):
+      * CRITICAL: When the user corrects or specifies a date in a follow-up (e.g. "actually that was yesterday", "change date to Oct 2nd", "the date was Friday", "it happened 2 days ago", "on the 2nd"):
+        1. ALWAYS emit an `edit_transaction` action with the updated "date". NEVER omit the action and NEVER reuse the previous or today's date!
+        2. Set "date" to the newly stated date in ISO 8601 format. The user's new date ALWAYS overrides any previously logged or established date immediately.
+        3. If the user says an ordinal day like "on the 2nd" or "the 15th", resolve it to year ${now.year}, current month (${now.month.toString().padLeft(2, '0')}).
+        4. If the title is not specified, use the title of the transaction just discussed or "recent".
       * When asked to modify, change date/year, or update an expense, use `edit_transaction`.
       * To change dates or years for all expenses (e.g. from 2023 to ${now.year}): use `{"action": "edit_transaction", "target_year": 2023, "new_year": ${now.year}}` or `{"action": "edit_transaction", "search_title": "all", "new_year": ${now.year}}`.
       * To update a specific transaction: `{"action": "edit_transaction", "search_title": "Lunch", "date": "${now.year}-09-11", "amount": -18.00}`.
     - DELETING EXPENSES (`delete_transaction`):
       * Use `{"action": "delete_transaction", "search_title": "Coffee"}` to remove an expense.
+
+    FOLLOW-UP DATE CORRECTIONS & OVERRIDES (HIGHEST PRIORITY ACROSS ALL ACTIONS):
+    - When the user mentions, changes, or corrects a date afterwards for ANY item (transactions, tasks, events):
+      * You MUST immediately emit the appropriate edit command (`edit_transaction`, `edit_task`, or `edit_event`) with the new date.
+      * NEVER keep using the old date or repeat the date from previous turns.
+      * The user's date stated in their latest message ALWAYS takes absolute precedence.
     
     INTERACTIVE ACTION PLANNING & FOLLOW-UPS:
     - When the user mentions an upcoming event, celebration, milestone, or plan (e.g., "my mom's birthday next Monday"), do NOT return just one command. Propose a complete plan by returning multiple related actions in one JSON array (e.g., `create_event` for the date, `create_note` for ideas/menu/checklist, and `create_task` for preparations).

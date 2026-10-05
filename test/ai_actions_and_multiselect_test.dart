@@ -159,6 +159,40 @@ Sure! I recorded your expense.
       expect(parsedDate.day, yesterday.day);
       expect(parsedDate.year, yesterday.year);
     });
+
+    test('user prompt date overrides stale repeated AI date when user corrects the date', () {
+      final now = DateTime.now();
+      final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      // Simulate AI lazily repeating today's date in JSON despite user saying "actually that was yesterday"
+      final aiResponse = '''
+Sure! I updated the expense.
+```json
+[
+  {"action": "edit_transaction", "search_title": "Lunch", "amount": -15.0, "date": "$todayStr"}
+]
+```
+''';
+      final parsed = AiResponseParser.parse(aiResponse, userPrompt: 'actually that was yesterday');
+      expect(parsed.actions.length, 1);
+      final action = parsed.actions.first;
+      expect(action.action, 'edit_transaction');
+      final parsedDate = DateTime.parse(action.data['date']);
+      final yesterday = now.subtract(const Duration(days: 1));
+      expect(parsedDate.day, yesterday.day);
+      expect(parsedDate.year, yesterday.year);
+    });
+
+    test('synthesizes edit_transaction when user provides date correction and AI forgot json block', () {
+      const aiResponse = 'Understood! I have updated the date of your lunch to yesterday.';
+      final parsed = AiResponseParser.parse(aiResponse, userPrompt: 'actually it was yesterday');
+      expect(parsed.actions.length, 1);
+      final action = parsed.actions.first;
+      expect(action.action, 'edit_transaction');
+      expect(action.data['search_title'], 'recent');
+      final parsedDate = DateTime.parse(action.data['date']);
+      final yesterday = DateTime.now().subtract(const Duration(days: 1));
+      expect(parsedDate.day, yesterday.day);
+    });
   });
 
   group('Events & Templates Cleanup', () {
