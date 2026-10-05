@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -1737,7 +1738,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                         autoFocus: false,
                         expands: true,
                         placeholder: "Start typing...",
-                        showSelectionHandles: true,
                         enableInteractiveSelection: true,
                         embedBuilders:
                             kIsWeb ? null : FlutterQuillEmbeds.editorBuilders(),
